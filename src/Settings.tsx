@@ -155,8 +155,8 @@ function SettingsApp() {
               lowBatteryThreshold={settings.lowBatteryThreshold}
               hasBattery={settings.hasBattery}
               handleThresholdChange={settings.handleThresholdChange}
-              restartNectar={settings.restartNectar}
-              quitNectar={settings.quitNectar}
+              restartCyexs={settings.restartCyexs}
+              quitCyexs={settings.quitCyexs}
             />
           )}
           {!query.trim() && activeTab === "appearance" && (
@@ -354,7 +354,7 @@ function SettingsApp() {
               handleResetSettings={settings.handleResetSettings}
               uninstallStatus={settings.uninstallStatus}
               uninstallError={settings.uninstallError}
-              handleUninstallNectar={settings.handleUninstallNectar}
+              handleUninstallCyexs={settings.handleUninstallCyexs}
             />
           )}
           {!query.trim() && activeTab === "diagnostics" && <DiagnosticsTab />}

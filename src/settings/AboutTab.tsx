@@ -21,7 +21,7 @@ interface AboutTabProps {
   handleResetSettings: () => void;
   uninstallStatus: string;
   uninstallError?: string;
-  handleUninstallNectar: () => void;
+  handleUninstallCyexs: () => void;
 }
 
 export function AboutTab({
@@ -42,7 +42,7 @@ export function AboutTab({
   handleResetSettings,
   uninstallStatus,
   uninstallError,
-  handleUninstallNectar,
+  handleUninstallCyexs,
 }: AboutTabProps) {
   const t = useT();
 
@@ -127,8 +127,8 @@ export function AboutTab({
   return (
     <div className="about-tab-container">
       <div className="about-header">
-        <img src="/nectar.png" className="about-logo" alt="Nectar Logo" />
-        <h1 className="about-title">Nectar</h1>
+        <img src="/nectar.png" className="about-logo" alt="Cyexs Logo" />
+        <h1 className="about-title">Cyexs</h1>
         <p className="about-version">{t("about.version", { version: appVersion || "—" })}</p>
         <button
           className={`update-pill update-pill--${updateStatus || "idle"}`}
@@ -194,7 +194,7 @@ export function AboutTab({
           action
           divider={false}
           danger={uninstallStatus === "confirm" || uninstallStatus === "error"}
-          onClick={handleUninstallNectar}
+          onClick={handleUninstallCyexs}
         />
       </div>
 

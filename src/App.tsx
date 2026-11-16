@@ -405,6 +405,26 @@ function App() {
     eventPeekTimeoutRef.current = setTimeout(() => setEventPeek(false), duration);
   }, []);
 
+  // Windows toast mirrored into the notch (notifications.rs): 8 s, held open while hovered.
+  type NotchNotif = { app: string; title: string; body: string; icon?: string | null; aumid?: string };
+  const [notif, setNotif] = useState<NotchNotif | null>(null);
+  const notifHoveredRef = useRef(false);
+  useEffect(() => {
+    const un = listen<NotchNotif>("notch-notification", (e) => {
+      notifHoveredRef.current = false;
+      setNotif(e.payload);
+      triggerEventPeek(8000);
+    });
+    return () => { un.then((f) => f()); };
+  }, [triggerEventPeek]);
+  useEffect(() => {
+    if (!notif) return;
+    if (isHovered) { notifHoveredRef.current = true; return; }
+    // Once seen up close, leave quickly; otherwise give it the full 8 s.
+    const timer = setTimeout(() => setNotif(null), notifHoveredRef.current ? 1500 : 8000);
+    return () => clearTimeout(timer);
+  }, [notif, isHovered]);
+
   const [notchMode, setNotchMode] = useState(() => {
     const raw = localStorage.getItem("nectar-notch-mode") || "fixed";
     if (raw === "auto-hide") return "smart";
@@ -554,7 +574,7 @@ function App() {
   const dockModeInitial = useRef(true);
   const notchModeInitial = useRef(true);
 
-  const [nectarMode, setNectarMode] = useState<'music' | 'calendar' | 'command-center' | 'status' | 'shelf' | 'agent'>('status');
+  const [nectarMode, setCyexsMode] = useState<'music' | 'calendar' | 'command-center' | 'status' | 'shelf' | 'agent'>('status');
   const [tourActive, setTourActive] = useState(false);
 
   const isAnyInteraction = isHovered || isNotchHovered || isEdgeHovered;
@@ -1062,7 +1082,7 @@ function App() {
     setTourDone(new Set());
     setTourStep(0);
     setIsHovered(true);
-    setNectarMode('status');
+    setCyexsMode('status');
     setTourActive(true);
   }, []);
 
@@ -1097,7 +1117,7 @@ function App() {
         invoke("change_dock_mode", { mode: snap.dockMode }).catch(() => {});
       }
     }
-    setNectarMode(snap?.mode ?? 'status');
+    setCyexsMode(snap?.mode ?? 'status');
     setCcView('main');
     setTourActive(false);
     localStorage.setItem("nectar-tour-seen", "1");
@@ -1108,7 +1128,12 @@ function App() {
     if (windowLabel !== 'main' || settingsLegacyMode || !isReady || !isExpanded || tourAutoStartedRef.current) return;
     tourAutoStartedRef.current = true;
     if (localStorage.getItem("nectar-tour-seen") === "1") return;
-    const timer = setTimeout(startTour, 1500);
+    // localStorage is lost when the process is killed; settings.json is the durable copy.
+    let timer: any;
+    invoke<Record<string, unknown>>("load_settings").catch(() => ({} as Record<string, unknown>)).then((saved) => {
+      if (String(saved["nectar-tour-seen"] ?? "") === "1") { localStorage.setItem("nectar-tour-seen", "1"); return; }
+      timer = setTimeout(startTour, 1500);
+    });
     return () => clearTimeout(timer);
   }, [windowLabel, settingsLegacyMode, isReady, isExpanded, startTour]);
 
@@ -1200,14 +1225,14 @@ function App() {
 
     const availableModes = availableNotchModes();
 
-    if (nectarMode === 'agent') { if (availableModes[0]) setNectarMode(availableModes[0]); return; }
+    if (nectarMode === 'agent') { if (availableModes[0]) setCyexsMode(availableModes[0]); return; }
     const currentIndex = availableModes.indexOf(nectarMode);
     if (currentIndex === -1) return;
 
     const nextIndex = (currentIndex + direction + availableModes.length) % availableModes.length;
     const nextMode = availableModes[nextIndex];
     manualMusicRef.current = nextMode === 'music';
-    setNectarMode(nextMode);
+    setCyexsMode(nextMode);
     tourSignal('panel');
   };
 
@@ -1318,7 +1343,7 @@ function App() {
     if (settingsMusicModeEnabled && settingsMusicCompactNotch && mediaInfo.has_media && isPlaying
         && nectarMode === 'status' && !isHovered && (isNewTrackWhilePlaying || justStartedPlaying)) {
       manualMusicRef.current = false;
-      setNectarMode('music');
+      setCyexsMode('music');
     }
 
     lastTrackRef.current = mediaInfo.title;
@@ -1331,7 +1356,7 @@ function App() {
     let timer: any;
     if (!isPlaying && nectarMode === 'music' && !manualMusicRef.current) {
       timer = setTimeout(() => {
-        setNectarMode('status');
+        setCyexsMode('status');
       }, 5000);
     }
     return () => clearTimeout(timer);
@@ -1339,25 +1364,25 @@ function App() {
 
   useEffect(() => {
     if (!productivityEnabled && nectarMode === 'calendar') {
-      setNectarMode('status');
+      setCyexsMode('status');
     }
   }, [productivityEnabled, nectarMode]);
 
   useEffect(() => {
     if (!settingsMusicModeEnabled && nectarMode === 'music') {
-      setNectarMode('status');
+      setCyexsMode('status');
     }
   }, [settingsMusicModeEnabled, nectarMode]);
 
   useEffect(() => {
     if (!settingsMusicCompactNotch && nectarMode === 'music' && !isHovered) {
-      setNectarMode('status');
+      setCyexsMode('status');
     }
   }, [settingsMusicCompactNotch, nectarMode, isHovered]);
 
   useEffect(() => {
     if (settingsMusicModeEnabled && settingsMusicCompactNotch && mediaInfo.has_media && isPlaying && nectarMode === 'status' && !isHovered) {
-      setNectarMode('music');
+      setCyexsMode('music');
     }
   }, [settingsMusicModeEnabled, settingsMusicCompactNotch, mediaInfo.has_media, isPlaying, nectarMode, isHovered]);
 
@@ -1794,7 +1819,7 @@ function App() {
     }
     if (!productivityEnabled) return;
 
-    setNectarMode(prev => {
+    setCyexsMode(prev => {
       if (prev === 'calendar') {
         // Return to music mode if media is present and playing and music mode is enabled, otherwise status
         return (settingsMusicModeEnabled && mediaInfo.has_media && isPlaying) ? 'music' : 'status';
@@ -1809,13 +1834,13 @@ function App() {
       resetTimer();
       return;
     }
-    if (nectarMode === 'agent') { const first = availableNotchModes()[0]; if (first) setNectarMode(first); return; }
+    if (nectarMode === 'agent') { const first = availableNotchModes()[0]; if (first) setCyexsMode(first); return; }
     const modes = availableNotchModes();
     const index = modes.indexOf(nectarMode);
     if (index === -1 || modes.length < 2) return;
     const next = modes[(index + 1) % modes.length];
     manualMusicRef.current = next === 'music';
-    setNectarMode(next);
+    setCyexsMode(next);
   };
 
   const conditionLabel = (condition: string) => {
@@ -1914,7 +1939,7 @@ function App() {
   const collapseAfterShelfDrag = () => {
     setIsHovered(false);
     setIsNotchHovered(false);
-    setNectarMode(mediaInfo.has_media && isPlaying && settingsMusicCompactNotch ? 'music' : 'status');
+    setCyexsMode(mediaInfo.has_media && isPlaying && settingsMusicCompactNotch ? 'music' : 'status');
   };
   const shelfDrag = useRef({ active: false, until: 0 });
   const shelfCollapseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -1932,20 +1957,20 @@ function App() {
     onDragEnter: () => {
       setIsHovered(true);
       setIsNotchHovered(true);
-      setNectarMode('shelf');
+      setCyexsMode('shelf');
     },
     onDragLeave: collapseAfterShelfDrag,
-    onDrop: () => setNectarMode('shelf'),
+    onDrop: () => setCyexsMode('shelf'),
   });
 
   useEffect(() => {
     if ((nectarMode === 'command-center' && !panelControlCenter) || (nectarMode === 'shelf' && !panelShelf)) {
-      setNectarMode('status');
+      setCyexsMode('status');
     }
   }, [nectarMode, panelControlCenter, panelShelf]);
 
   useEffect(() => {
-    if (nectarMode === 'agent' && (!agentActivity || agentActivity.state === 'working' || agentActivity.state === 'tool' || agentActivity.state === 'done')) setNectarMode('status');
+    if (nectarMode === 'agent' && (!agentActivity || agentActivity.state === 'working' || agentActivity.state === 'tool' || agentActivity.state === 'done')) setCyexsMode('status');
   }, [nectarMode, agentActivity]);
 
   // Music mode shows any time we have media info (playing or paused) and music mode setting is enabled
@@ -1969,6 +1994,7 @@ function App() {
   const agentWings = !!agentActivity && isNotchWindow && !isHovered && (nectarMode === 'status' || isMusicMode);
 
   const getDynamicWidth = () => {
+    if (notif) return 420;
     const widgetsRowWidth = isHovered && statusWidgets.left.length + statusWidgets.right.length > 0
       ? Math.min(200 + Math.max(statusWidgets.left.length, statusWidgets.right.length) * 2 * 65, 530) + dualClockExtra
       : 0;
@@ -2002,6 +2028,11 @@ function App() {
   const getDynamicHeight = () => {
     if (!isExpanded || isHidden) {
       return isImpacted ? 28.9 : 44.2;
+    }
+    if (notif) {
+      // Rough wrap estimate (~42 chars per body line, ~38 per title line) so the notch grows to fit the text.
+      const lines = Math.max(1, Math.ceil(notif.body.length / 42)) + Math.max(0, Math.ceil(notif.title.length / 38) - 1);
+      return isHovered ? Math.min(380, 74 + lines * 18) : Math.min(200, 74 + Math.min(lines, 6) * 18);
     }
     if (nectarMode === 'agent') {
       const ask = agentActivity?.ask;
@@ -2118,9 +2149,9 @@ function App() {
           setIsHovered(true);
           if (nectarMode !== 'shelf') {
             const remembered = settingsRememberMode ? rememberedModeRef.current : null;
-            if (agentNeedsYou) setNectarMode('agent');
-            else if (remembered && availableNotchModes().includes(remembered)) setNectarMode(remembered);
-            else setNectarMode(mediaInfo.has_media && isPlaying ? 'music' : 'status');
+            if (agentNeedsYou) setCyexsMode('agent');
+            else if (remembered && availableNotchModes().includes(remembered)) setCyexsMode(remembered);
+            else setCyexsMode(mediaInfo.has_media && isPlaying ? 'music' : 'status');
           }
         }}
         onHoverEnd={() => {
@@ -2133,9 +2164,9 @@ function App() {
           if (nectarMode === 'command-center' || nectarMode === 'calendar') rememberedModeRef.current = nectarMode;
           const targetMode = mediaInfo.has_media && isPlaying && settingsMusicCompactNotch ? 'music' : 'status';
           if (nectarMode === 'music') {
-            setNectarMode(targetMode);
+            setCyexsMode(targetMode);
           } else if (nectarMode === 'command-center' || nectarMode === 'calendar' || nectarMode === 'status' || nectarMode === 'shelf' || nectarMode === 'agent') {
-            setNectarMode(targetMode);
+            setCyexsMode(targetMode);
           }
         }}
         style={{ originY: 0, ...musicTint }}
@@ -2165,7 +2196,30 @@ function App() {
             >
               {/* Faster Waiting Transition Area */}
               <AnimatePresence mode="wait">
-                {isHovered && isMusicMode && !isCalendarMode ? (
+                {notif ? (
+                  <motion.div
+                    key={`notif-card-${notif.app}-${notif.title}-${notif.body}`}
+                    className={`notif-card${isHovered ? " expanded" : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (notif.aumid) invoke("open_notification_app", { aumid: notif.aumid }).catch(() => { });
+                      setNotif(null);
+                    }}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.1 } }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  >
+                    {notif.icon
+                      ? <img className="notif-card-icon" src={notif.icon} alt="" draggable={false} />
+                      : <div className="notif-card-icon notif-card-icon-fallback">{(notif.app || "?")[0]}</div>}
+                    <div className="notif-card-text">
+                      <div className="notif-card-app">{notif.app || "Bildirim"}</div>
+                      {notif.title && <div className="notif-card-title">{notif.title}</div>}
+                      {notif.body && <div className="notif-card-body">{notif.body}</div>}
+                    </div>
+                  </motion.div>
+                ) : isHovered && isMusicMode && !isCalendarMode ? (
                   <motion.div
                     key="expanded-music"
                     className="expanded-music-container"
@@ -2834,7 +2888,7 @@ function App() {
                       onClose={closeTour}
                       onAction={(id) => {
                         closeTour();
-                        if (id === 'control-center') setNectarMode('command-center');
+                        if (id === 'control-center') setCyexsMode('command-center');
                         else openSettingsWindow();
                       }}
                     />
@@ -2858,11 +2912,11 @@ function App() {
                       picks={agentPicks.id === agentActivity.ask?.id ? agentPicks.choices : []}
                       onPick={(choices) => setAgentPicks({ id: agentActivity.ask?.id ?? 0, choices })}
                       onOpen={() => { if (agentActivity.window) invoke('focus_agent_window', { window: agentActivity.window }).catch(() => { }); }}
-                      onDismiss={() => { setAgentActivity(null); setNectarMode('status'); }}
+                      onDismiss={() => { setAgentActivity(null); setCyexsMode('status'); }}
                       onAnswer={(allow, choices) => {
                         if (agentActivity.ask) invoke('agent_answer', { id: agentActivity.ask.id, allow, choices }).catch(() => { });
                         setAgentActivity({ ...agentActivity, state: 'working', ask: undefined });
-                        setNectarMode('status');
+                        setCyexsMode('status');
                       }}
                     />
                   </motion.div>

@@ -22,14 +22,14 @@ pub static HOOK_LAST_EVENT_MS: AtomicI64 = AtomicI64::new(0);
 
 pub fn init() {
     let Ok(appdata) = std::env::var("APPDATA") else { return };
-    let dir = PathBuf::from(appdata).join("com.kua8.nectar").join("logs");
+    let dir = PathBuf::from(appdata).join("com.yerel.kovan").join("logs");
     if fs::create_dir_all(&dir).is_err() {
         return;
     }
     let _ = LOG_DIR.set(dir);
     install_panic_hook();
     log(&format!(
-        "---- Nectar {} starting (pid {}) ----",
+        "---- Cyexs {} starting (pid {}) ----",
         env!("CARGO_PKG_VERSION"),
         std::process::id()
     ));
@@ -209,9 +209,9 @@ pub fn build_report(app: &AppHandle) -> String {
     let hook_age = if last == 0 { "never".to_string() } else { format!("{}ms ago", now - last) };
 
     let report = format!(
-        "Nectar diagnostics\n\
+        "Cyexs diagnostics\n\
          ==================\n\
-         Nectar: {version}\n\
+         Cyexs: {version}\n\
          Windows: {windows}\n\
          WebView2: {webview}\n\
          GPU: {gpu}\n\

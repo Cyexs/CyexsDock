@@ -2818,3 +2818,17 @@ img {
     margin-right: 6px;
     color: var(--nectar-text-muted, rgba(255, 255, 255, 0.6));
 }
+
+/* Notification mirrored into the notch: icon left, text right.
+   flex-shrink: 0 keeps lines from squashing into each other while the notch animates its height. */
+.notif-card { width: 100%; height: 100%; box-sizing: border-box; padding: 16px 20px; display: flex; flex-direction: row; align-items: flex-start; gap: 14px; color: white; text-align: left; overflow: hidden; cursor: pointer; }
+.notif-card-icon { width: 52px; height: 52px; border-radius: 12px; object-fit: contain; flex-shrink: 0; }
+/* Windows app logos carry wide transparent padding; scale the glyph up so it reads at notch size. */
+img.notif-card-icon { transform: scale(1.35); }
+.notif-card-icon-fallback { display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.14); font-size: 20px; font-weight: 600; text-transform: uppercase; }
+.notif-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.notif-card-text > * { flex-shrink: 0; }
+.notif-card-app { font-size: 11px; line-height: 14px; font-weight: 600; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.04em; }
+.notif-card-title { font-size: 14px; line-height: 19px; font-weight: 600; white-space: normal; word-break: break-word; }
+.notif-card-body { font-size: 13px; line-height: 18px; opacity: 0.85; white-space: normal; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.notif-card.expanded .notif-card-body { -webkit-line-clamp: 18; }

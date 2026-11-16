@@ -22,8 +22,8 @@ interface GeneralTabProps {
   lowBatteryThreshold: number;
   hasBattery: boolean;
   handleThresholdChange: (val: number) => void;
-  restartNectar: () => void;
-  quitNectar: () => void;
+  restartCyexs: () => void;
+  quitCyexs: () => void;
 }
 
 export function GeneralTab({
@@ -44,8 +44,8 @@ export function GeneralTab({
   lowBatteryThreshold,
   hasBattery,
   handleThresholdChange,
-  restartNectar,
-  quitNectar,
+  restartCyexs,
+  quitCyexs,
 }: GeneralTabProps) {
   const t = useT();
   const languageOptions = [
@@ -147,8 +147,8 @@ export function GeneralTab({
       </SettingSection>
 
       <SettingSection id="general-app" title={t("general.app")}>
-        <SettingRow icon={RefreshCw} label={t("general.restart")} desc={t("general.restart.desc")} action onClick={restartNectar} />
-        <SettingRow icon={LogOut} label={t("general.quit")} desc={t("general.quit.desc")} action danger onClick={quitNectar} divider={false} />
+        <SettingRow icon={RefreshCw} label={t("general.restart")} desc={t("general.restart.desc")} action onClick={restartCyexs} />
+        <SettingRow icon={LogOut} label={t("general.quit")} desc={t("general.quit.desc")} action danger onClick={quitCyexs} divider={false} />
       </SettingSection>
     </>
   );

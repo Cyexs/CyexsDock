@@ -981,7 +981,7 @@ body {
   font-weight: 500;
 }
 
-/* Invert Nectar logo / Settings icon in light mode */
+/* Invert Cyexs logo / Settings icon in light mode */
 .light-mode .nectar-icon-img {
   filter: invert(1) brightness(0.15) contrast(1.2);
 }
@@ -1135,3 +1135,44 @@ body {
   background: var(--nectar-text, #fff);
   color: var(--nectar-bg-expanded, #000);
 }
+
+/* Taskbar-style status group (Wi-Fi, volume, battery) */
+.dock-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  align-self: center;
+  height: 36px;
+  margin-left: 8px;
+  padding: 0 12px;
+  border-radius: 12px;
+  color: var(--nectar-text, white);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+.dock-status:hover { background: rgba(255, 255, 255, 0.12); }
+.dock-status-battery { display: flex; align-items: center; gap: 4px; }
+
+/* Start button right-click menu: tighter rows so it fits above the dock */
+.menu-item.compact { padding: 6px 12px; }
+
+/* Wi-Fi / volume / battery panel */
+.status-panel { width: 280px; padding: 6px; display: flex; flex-direction: column; gap: 10px; color: var(--nectar-text, white); }
+.status-panel-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.status-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-radius: 10px; border: none; background: rgba(255, 255, 255, 0.08); color: inherit; font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; text-align: left; transition: background 0.15s ease; }
+.status-tile:hover { background: rgba(255, 255, 255, 0.14); }
+.status-tile.on { background: var(--nectar-accent, #3b82f6); }
+.status-slider { display: flex; align-items: center; gap: 10px; padding: 0 4px; }
+.status-slider input { flex: 1; accent-color: var(--nectar-accent, #3b82f6); cursor: pointer; }
+.status-panel-footer { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; font-size: 12px; opacity: 0.85; }
+.status-panel-links { display: flex; gap: 4px; }
+.status-panel-links button { display: flex; padding: 6px; border: none; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
+.status-panel-links button:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* Hidden tray icons button, sits right before the status group */
+.dock-tray-btn { padding: 0 8px; margin-left: 8px; }
+.dock-tray-btn + .dock-status { margin-left: 2px; }

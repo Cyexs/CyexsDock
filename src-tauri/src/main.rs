@@ -32,6 +32,7 @@ mod webview_args;
 mod on_demand_windows;
 mod wallpaper;
 mod live_preview;
+mod notifications;
 
 use tauri::Manager;
 use windows::Win32::System::Console::SetConsoleCtrlHandler;
@@ -78,8 +79,8 @@ fn main() {
         use windows::Win32::System::Threading::{CreateMutexW, CreateEventW, OpenEventW, SetEvent, SYNCHRONIZATION_ACCESS_RIGHTS};
         use windows::Win32::Foundation::{GetLastError, CloseHandle};
 
-        let mutex_name: Vec<u16> = "NectarSingleInstance".encode_utf16().chain(std::iter::once(0)).collect();
-        let event_name: Vec<u16> = "NectarOpenSettings".encode_utf16().chain(std::iter::once(0)).collect();
+        let mutex_name: Vec<u16> = "CyexsSingleInstance".encode_utf16().chain(std::iter::once(0)).collect();
+        let event_name: Vec<u16> = "CyexsOpenSettings".encode_utf16().chain(std::iter::once(0)).collect();
 
         let h_mutex = CreateMutexW(None, true, windows::core::PCWSTR(mutex_name.as_ptr())).ok();
         let err = GetLastError();
@@ -131,6 +132,9 @@ fn main() {
             open_wifi_settings,
             open_sound_settings,
             open_notification_center,
+            open_quick_settings,
+            win_menu_action,
+            notifications::open_notification_app,
             set_ignore_cursor_events,
             set_window_height,
             resize_settings_window,
@@ -284,6 +288,7 @@ fn main() {
 
             crate::utils::init_settings_cache(app.handle());
             agent_api::start(app.handle().clone());
+            notifications::start(app.handle().clone());
 
             #[cfg(not(debug_assertions))]
             std::thread::spawn(crate::uninstall_registry::heal_uninstall_registration);
@@ -402,7 +407,7 @@ fn main() {
                 let ah = app.handle().clone();
                 TrayIconBuilder::new()
                     .icon(app.default_window_icon().unwrap().clone())
-                    .tooltip("Nectar")
+                    .tooltip("Cyexs")
                     .menu(&menu)
                     .on_menu_event(move |_, event| match event.id().as_ref() {
                         "quit" => {

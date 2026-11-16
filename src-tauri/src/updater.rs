@@ -54,7 +54,7 @@ fn channel_name(app: &AppHandle) -> &'static str {
 /// Manifest of the newest release, pre-releases included (GitHub's `latest` skips them).
 async fn newest_release_manifest() -> Option<tauri::Url> {
     let client = reqwest::Client::builder()
-        .user_agent("Nectar")
+        .user_agent("Cyexs")
         .timeout(Duration::from_secs(CHECK_TIMEOUT_SECS))
         .build()
         .ok()?;
@@ -153,6 +153,7 @@ pub fn release_is_old_enough(result: &UpdateCheckResult) -> bool {
 /// is set. Development builds skip the automatic network check because their
 /// version never tracks releases; manual checks still work.
 pub async fn check(app: &AppHandle, force: bool) -> Result<UpdateCheckResult, String> {
+    return Ok(UpdateCheckResult::default());
     if !force {
         if let Some(cached) = cached_result(app) {
             return Ok(cached);
@@ -212,6 +213,7 @@ pub async fn check(app: &AppHandle, force: bool) -> Result<UpdateCheckResult, St
 /// launches the NSIS installer and terminates this process, which then
 /// relaunches the app; on other platforms this returns after restarting.
 pub async fn install(app: &AppHandle) -> Result<(), String> {
+    return Ok(());
     if !is_installed_copy() {
         crate::diagnostics::log("update: this copy is not installed (portable or development build), opening the release page instead of running the installer");
         let _ = tauri_plugin_opener::open_url(RELEASES_PAGE, None::<&str>);
@@ -313,6 +315,8 @@ async fn install_inner(app: &AppHandle) -> Result<(), String> {
 /// Startup entry point: always checks so the UI can show an update badge, and
 /// auto-installs only when the user enabled it and the release has aged.
 pub async fn run_startup_check(app: AppHandle) {
+    // local build: updater disabled so no unreviewed binary is ever fetched
+    return;
     let auto_update = crate::utils::get_setting_str(&app, "nectar-auto-update").as_deref() == Some("true");
 
     if auto_update {

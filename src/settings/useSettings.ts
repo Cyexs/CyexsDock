@@ -1215,7 +1215,7 @@ export function useSettings() {
     }
   };
 
-  const handleUninstallNectar = async () => {
+  const handleUninstallCyexs = async () => {
     if (uninstallStatus === "idle" || uninstallStatus === "error") {
       setUninstallStatus("confirm");
       setTimeout(() => setUninstallStatus((s) => (s === "confirm" ? "idle" : s)), 4000);
@@ -1439,10 +1439,10 @@ export function useSettings() {
     handleResetSettings,
     uninstallStatus,
     uninstallError,
-    handleUninstallNectar,
+    handleUninstallCyexs,
 
     // Utilities
-    restartNectar: () => invoke("restart_nectar"),
-    quitNectar: () => invoke("quit_nectar"),
+    restartCyexs: () => invoke("restart_nectar"),
+    quitCyexs: () => invoke("quit_nectar"),
   };
 }

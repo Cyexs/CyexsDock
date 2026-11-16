@@ -12,6 +12,7 @@ import { useT } from './i18n';
 import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon } from './icons';
 import { setVisibleInterval } from "./hooks/visibleInterval";
 import { appAttention } from "./attention";
+import { DockStatus, StatusPanel } from './DockStatus';
 
 interface AppInfo {
   name: string;
@@ -87,8 +88,8 @@ const fileOf = (p: string) =>
 // AUMIDs identify one app. Two PWAs in the same browser must never match on the shared exe name.
 const isIdentifier = (p: string) => !p.includes('/') && !p.includes('\\');
 
-const isNectarWindow = (app: { name: string; path: string }) =>
-  app.path.toLowerCase().includes('nectar.exe') || app.name.toLowerCase() === 'nectar';
+const isCyexsWindow = (app: { name: string; path: string }) =>
+  app.path.toLowerCase().includes('cyexs.exe') || app.name.toLowerCase() === 'nectar';
 
 const NECTAR_MENU_IDS = ["calendar", "settings", "taskmgr", "restart", "clearicons", "quit"];
 
@@ -588,7 +589,7 @@ const Dock = memo(function Dock() {
     setRenameApp(null);
     invoke('set_menu_open', { open: false, rect: null }).catch(() => {});
   };
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, app: AppInfo | null } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, app: AppInfo | null, kind?: 'status' } | null>(null);
   const [contextMenuHeight, setContextMenuHeight] = useState(0);
   const [contextMenuWidth, setContextMenuWidth] = useState(0);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
@@ -1154,7 +1155,8 @@ const Dock = memo(function Dock() {
 
     invoke('set_menu_open', { open, rect }).catch(() => {});
 
-  }, [contextMenu, popupOpen, pinnedApps, activeApps, activeSubmenu, scale]);
+  // Re-send once the menu is measured, or the click-through rect keeps the estimated (wrong) size.
+  }, [contextMenu, contextMenuHeight, contextMenuWidth, popupOpen, pinnedApps, activeApps, activeSubmenu, scale]);
 
   const dockItems = useMemo(() => {
     const runningMap = new Map();
@@ -1706,15 +1708,6 @@ const Dock = memo(function Dock() {
                 </motion.div>
               )}
 
-              {!legacyMode && dockTray && renderShortcut(
-                'tray', t('dockmenu.hiddenIcons'), 0.21,
-                (rect, e) => invoke('open_tray_from_button', {
-                  dx: (rect.left + rect.width / 2 - e.clientX) * window.devicePixelRatio,
-                  dy: (rect.top - e.clientY) * window.devicePixelRatio,
-                }).catch((err) => console.error('Failed to open tray:', err)),
-                <ChevronUpIcon />
-              )}
-
               {!legacyMode && dockTaskView && renderShortcut(
                 'taskview', t('dockmenu.taskView'), 0.22,
                 () => invoke('open_app', { appName: 'taskview' }).catch((err) => console.error('Failed to open Task View:', err)),
@@ -1802,10 +1795,10 @@ const Dock = memo(function Dock() {
                     const allowPathFallback = !isHost || !app.is_running;
                     const icon = customIcons[cacheKey] || (allowPathFallback && customIcons[app.path]) || iconsRef.current[cacheKey] || (allowPathFallback && iconsRef.current[app.path]) || app.icon;
                     
-                    const isNectarOrSettings = isNectarWindow(app);
+                    const isCyexsOrSettings = isCyexsWindow(app);
                     
-                    return (icon || isNectarOrSettings) ? (
-                      <DockAppIcon src={isNectarOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isNectarOrSettings} />
+                    return (icon || isCyexsOrSettings) ? (
+                      <DockAppIcon src={isCyexsOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
                     ) : (
                       <div className="fallback-icon">{app.name[0]}</div>
                     );
@@ -1886,9 +1879,9 @@ const Dock = memo(function Dock() {
                         // Running host items skip the shared path fallback, or the browser's icon leaks onto its PWAs.
                     const allowPathFallback = !isHost || !app.is_running;
                     const icon = customIcons[cacheKey] || (allowPathFallback && customIcons[app.path]) || iconsRef.current[cacheKey] || (allowPathFallback && iconsRef.current[app.path]) || app.icon;
-                          const isNectarOrSettings = isNectarWindow(app);
-                          return (icon || isNectarOrSettings) ? (
-                            <DockAppIcon src={isNectarOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isNectarOrSettings} />
+                          const isCyexsOrSettings = isCyexsWindow(app);
+                          return (icon || isCyexsOrSettings) ? (
+                            <DockAppIcon src={isCyexsOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
                           ) : (
                             <div className="fallback-icon">{app.name[0]}</div>
                           );
@@ -1967,9 +1960,9 @@ const Dock = memo(function Dock() {
                           // Running host items skip the shared path fallback, or the browser's icon leaks onto its PWAs.
                     const allowPathFallback = !isHost || !app.is_running;
                     const icon = customIcons[cacheKey] || (allowPathFallback && customIcons[app.path]) || iconsRef.current[cacheKey] || (allowPathFallback && iconsRef.current[app.path]) || app.icon;
-                          const isNectarOrSettings = isNectarWindow(app);
-                          return (icon || isNectarOrSettings) ? (
-                            <DockAppIcon src={isNectarOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isNectarOrSettings} />
+                          const isCyexsOrSettings = isCyexsWindow(app);
+                          return (icon || isCyexsOrSettings) ? (
+                            <DockAppIcon src={isCyexsOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
                           ) : (
                             <div className="fallback-icon">{app.name[0]}</div>
                           );
@@ -1982,6 +1975,32 @@ const Dock = memo(function Dock() {
                 ))}
               </Reorder.Group>
               )}
+
+              {!legacyMode && dockTray && (
+                // Hidden tray icons, next to Wi-Fi/volume/battery like the native taskbar corner.
+                <div
+                  className="dock-status dock-tray-btn"
+                  title={t('dockmenu.hiddenIcons')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    invoke('open_tray_from_button', {
+                      dx: (rect.left + rect.width / 2 - e.clientX) * window.devicePixelRatio,
+                      dy: (rect.top - e.clientY) * window.devicePixelRatio,
+                    }).catch((err) => console.error('Failed to open tray:', err));
+                  }}
+                >
+                  <ChevronUpIcon />
+                </div>
+              )}
+              <DockStatus onOpen={(e) => {
+                if (contextMenu?.kind === 'status') { closeMenu(); return; }
+                const r = e.currentTarget.getBoundingClientRect();
+                const d = dockRef.current?.getBoundingClientRect();
+                setContextMenuHeight(0);
+                setContextMenuWidth(0);
+                setContextMenu({ x: r.left + r.width / 2, y: d ? d.top : r.top, app: null, kind: 'status' });
+              }} />
 
               {dockShowDesktop && (
                 <div
@@ -2017,7 +2036,64 @@ const Dock = memo(function Dock() {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {contextMenu.app ? (
+          {contextMenu.kind === 'status' ? (
+            <StatusPanel onClose={closeMenu} />
+          ) : contextMenu.app?.path === 'start' ? (
+            <>
+              {([
+                ['apps', 'Yüklü uygulamalar'], ['power', 'Güç Seçenekleri'], ['system', 'Sistem'], ['network', 'Ağ Bağlantıları'],
+                'tools', 'term', null,
+                ['taskmgr', 'Görev Yöneticisi'], ['settings', 'Ayarlar'], ['explorer', 'Dosya Gezgini'],
+                ['search', 'Ara'], ['run', 'Çalıştır'], null,
+              ] as ([string, string] | 'tools' | 'term' | null)[]).map((item, i) => item === 'term' ? (
+                <div
+                  key="term"
+                  className="menu-item compact has-submenu"
+                  onMouseEnter={() => setActiveSubmenu('term')}
+                  onMouseLeave={() => setActiveSubmenu(null)}
+                >
+                  Terminal
+                  <span className="submenu-arrow">▶</span>
+                  <div className="submenu">
+                    {[['terminal', 'Terminal'], ['terminal-admin', 'Terminal (Yönetici)']].map(([id, label]) => (
+                      <div key={id} className="menu-item compact" onClick={() => { invoke('win_menu_action', { action: id }); closeMenu(); }}>{label}</div>
+                    ))}
+                  </div>
+                </div>
+              ) : item === 'tools' ? (
+                <div
+                  key="tools"
+                  className="menu-item compact has-submenu"
+                  onMouseEnter={() => setActiveSubmenu('tools')}
+                  onMouseLeave={() => setActiveSubmenu(null)}
+                >
+                  Yönetim araçları
+                  <span className="submenu-arrow">▶</span>
+                  <div className="submenu">
+                    {[['events', 'Olay Görüntüleyicisi'], ['devices', 'Aygıt Yöneticisi'], ['disks', 'Disk Yönetimi'], ['computer', 'Bilgisayar Yönetimi']].map(([id, label]) => (
+                      <div key={id} className="menu-item compact" onClick={() => { invoke('win_menu_action', { action: id }); closeMenu(); }}>{label}</div>
+                    ))}
+                  </div>
+                </div>
+              ) : item ? (
+                <div key={item[0]} className="menu-item compact" onClick={() => { invoke('win_menu_action', { action: item[0] }); closeMenu(); }}>{item[1]}</div>
+              ) : <div key={`d${i}`} className="menu-divider" />)}
+              <div
+                className="menu-item compact has-submenu"
+                onMouseEnter={() => setActiveSubmenu('power')}
+                onMouseLeave={() => setActiveSubmenu(null)}
+              >
+                Kapat veya oturumu kapat
+                <span className="submenu-arrow">▶</span>
+                <div className="submenu">
+                  <div className="menu-item" onClick={() => { invoke('win_menu_action', { action: 'signout' }); closeMenu(); }}>Oturumu kapat</div>
+                  <div className="menu-item" onClick={() => { invoke('win_menu_action', { action: 'restart' }); closeMenu(); }}>Yeniden başlat</div>
+                  <div className="menu-item quit" onClick={() => { invoke('win_menu_action', { action: 'shutdown' }); closeMenu(); }}>Bilgisayarı kapat</div>
+                </div>
+              </div>
+              <div className="menu-item compact" onClick={() => { invoke('show_desktop').catch(() => { }); closeMenu(); }}>Masaüstü</div>
+            </>
+          ) : contextMenu.app ? (
             <>
               {contextMenu.app.is_running && contextMenu.app.path !== 'start' && (
                 <>

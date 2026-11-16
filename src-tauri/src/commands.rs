@@ -12,7 +12,13 @@ use crate::services::{register_appbar, register_dock_appbar, sync_overlays, unre
 use std::collections::HashMap;
 
 #[tauri::command]
-pub async fn set_menu_open(open: bool, rect: Option<IntRect>) {
+pub async fn set_menu_open(window: Window, open: bool, rect: Option<IntRect>) {
+    // Tall menus reach into the notch window's area; raise the dock so the notch can't take their clicks.
+    if open {
+        if let Ok(hwnd) = window.hwnd() {
+            crate::utils::re_assert_topmost(hwnd);
+        }
+    }
     MENU_IS_OPEN.store(open, Ordering::Relaxed);
     if let Ok(mut r) = MENU_RECT.lock() {
         *r = rect;
@@ -2155,6 +2161,45 @@ pub fn open_sound_settings() {
 }
 
 #[tauri::command]
+pub fn open_quick_settings() {
+    // Win+A opens Windows Quick Settings (Wi-Fi, volume, battery); the URI route opened the notification center instead.
+    send_win_chord(windows::Win32::UI::Input::KeyboardAndMouse::VK_A);
+}
+
+/// Windows' Win+X menu items for the dock Start button. Fixed list: the frontend only sends an id.
+#[tauri::command]
+pub fn win_menu_action(action: String) {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{VK_R, VK_S};
+    let (verb, file, args): (&str, &str, &str) = match action.as_str() {
+        "apps" => ("open", "ms-settings:appsfeatures", ""),
+        "power" => ("open", "ms-settings:powersleep", ""),
+        "events" => ("open", "eventvwr.msc", ""),
+        "system" => ("open", "ms-settings:about", ""),
+        "devices" => ("open", "devmgmt.msc", ""),
+        "network" => ("open", "ms-settings:network", ""),
+        "disks" => ("open", "diskmgmt.msc", ""),
+        "computer" => ("open", "compmgmt.msc", ""),
+        "terminal" => ("open", "wt.exe", ""),
+        "terminal-admin" => ("runas", "wt.exe", ""),
+        "taskmgr" => ("open", "taskmgr.exe", ""),
+        "settings" => ("open", "ms-settings:", ""),
+        "explorer" => ("open", "explorer.exe", ""),
+        "signout" => ("open", "shutdown.exe", "/l"),
+        "restart" => ("open", "shutdown.exe", "/r /t 0"),
+        "shutdown" => ("open", "shutdown.exe", "/s /t 0"),
+        "search" => return send_win_chord(VK_S),
+        "run" => return send_win_chord(VK_R),
+        _ => return,
+    };
+    unsafe {
+        use windows::core::{HSTRING, PCWSTR};
+        use windows::Win32::UI::Shell::ShellExecuteW;
+        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+        let _ = ShellExecuteW(None, &HSTRING::from(verb), &HSTRING::from(file), &HSTRING::from(args), PCWSTR::null(), SW_SHOWNORMAL);
+    }
+}
+
+#[tauri::command]
 pub fn open_notification_center() {
     unsafe {
         use windows::Win32::Foundation::HWND;
@@ -2652,7 +2697,7 @@ pub async fn quit_nectar(handle: AppHandle) {
 fn registered_uninstaller() -> Option<std::path::PathBuf> {
     use std::os::windows::process::CommandExt;
     for root in ["HKCU", "HKLM"] {
-        let key = format!(r"{}\Software\Microsoft\Windows\CurrentVersion\Uninstall\Nectar", root);
+        let key = format!(r"{}\Software\Microsoft\Windows\CurrentVersion\Uninstall\Cyexs", root);
         let Ok(out) = std::process::Command::new("reg")
             .args(["query", &key, "/v", "UninstallString"])
             .creation_flags(0x0800_0000)
@@ -2683,7 +2728,7 @@ pub async fn uninstall_nectar(handle: AppHandle) -> Result<(), String> {
 
     if !uninstaller.exists() {
         uninstaller = registered_uninstaller().ok_or_else(|| {
-            "This copy of Nectar isn't an installed one (it's a portable or development build), so there's nothing to uninstall. Run it from its install folder, or use Windows Settings > Apps.".to_string()
+            "This copy of Cyexs isn't an installed one (it's a portable or development build), so there's nothing to uninstall. Run it from its install folder, or use Windows Settings > Apps.".to_string()
         })?;
     }
 
@@ -3091,12 +3136,14 @@ fn get_radio_state_sync(kind: windows::Devices::Radios::RadioKind) -> Result<boo
 }
 
 fn set_radio_state_sync(kind: windows::Devices::Radios::RadioKind, enabled: bool) -> Result<(), String> {
-    use windows::Devices::Radios::{Radio, RadioState};
+    use windows::Devices::Radios::{Radio, RadioAccessStatus, RadioState};
     unsafe {
         let _ = windows::Win32::System::Com::CoInitializeEx(
             None, windows::Win32::System::Com::COINIT_MULTITHREADED,
         );
     }
+    // Without this request Windows answers SetStateAsync with a denied status and nothing changes.
+    let _ = Radio::RequestAccessAsync().and_then(|op| op.get());
     let radios = Radio::GetRadiosAsync()
         .and_then(|op| op.get())
         .map_err(|e| e.to_string())?;
@@ -3104,11 +3151,16 @@ fn set_radio_state_sync(kind: windows::Devices::Radios::RadioKind, enabled: bool
         if let Ok(radio) = radios.GetAt(i) {
             if radio.Kind().ok() == Some(kind) {
                 let target = if enabled { RadioState::On } else { RadioState::Off };
-                let _ = radio.SetStateAsync(target).and_then(|op| op.get());
+                let status = radio.SetStateAsync(target).and_then(|op| op.get()).map_err(|e| e.to_string())?;
+                if status != RadioAccessStatus::Allowed {
+                    crate::diagnostics::log(&format!("radio: {kind:?} -> {enabled} refused: {status:?}"));
+                    return Err(format!("radio access {status:?}"));
+                }
                 return Ok(());
             }
         }
     }
+    crate::diagnostics::log(&format!("radio: no {kind:?} radio found"));
     Ok(())
 }
 
@@ -3444,7 +3496,7 @@ const PROTECTED_PROCESS_NAMES: &[&str] = &[
     "smss.exe",
     "explorer.exe",
     "dwm.exe",
-    "nectar.exe",
+    "cyexs.exe",
 ];
 
 #[tauri::command]
@@ -3711,7 +3763,7 @@ pub async fn export_settings_dialog(app: AppHandle) -> Result<bool, String> {
     let file_path = app
         .dialog()
         .file()
-        .set_title("Export Nectar Settings")
+        .set_title("Export Cyexs Settings")
         .set_file_name("nectar-settings.json")
         .add_filter("JSON", &["json"])
         .blocking_save_file();
@@ -3733,7 +3785,7 @@ pub async fn import_settings_dialog(app: AppHandle) -> Result<bool, String> {
     let file_path = app
         .dialog()
         .file()
-        .set_title("Import Nectar Settings")
+        .set_title("Import Cyexs Settings")
         .add_filter("JSON", &["json"])
         .blocking_pick_file();
 

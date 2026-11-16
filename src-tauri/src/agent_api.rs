@@ -65,7 +65,7 @@ struct Activity {
 }
 
 pub fn data_dir() -> Option<PathBuf> {
-    std::env::var_os("APPDATA").map(|dir| PathBuf::from(dir).join("com.kua8.nectar"))
+    std::env::var_os("APPDATA").map(|dir| PathBuf::from(dir).join("com.yerel.kovan"))
 }
 
 fn config_path() -> Option<PathBuf> {
@@ -555,7 +555,7 @@ fn ask(args: &[String]) {
     }
     let behavior = match decision.as_ref().and_then(|d| d["decision"].as_str()) {
         Some("allow") => serde_json::json!({ "behavior": "allow" }),
-        Some("deny") => serde_json::json!({ "behavior": "deny", "message": "Denied from Nectar" }),
+        Some("deny") => serde_json::json!({ "behavior": "deny", "message": "Denied from Cyexs" }),
         _ => return,
     };
     println!("{}", serde_json::json!({ "hookSpecificOutput": { "hookEventName": "PermissionRequest", "decision": behavior } }));
