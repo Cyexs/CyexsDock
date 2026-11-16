@@ -82,15 +82,15 @@ export function useSettings() {
   const [shelfPersist, setShelfPersist] = useState(
     () => localStorage.getItem("nectar-shelf-persist") === "true"
   );
-  const [volumeOverlayEnabled, setVolumeOverlayEnabled] = useState(true);
+  const [volumeOverlayEnabled, setVolumeOverlayEnabled] = useState(false);
   const [volumeEdgeEnabled, setVolumeEdgeEnabled] = useState(
-    () => localStorage.getItem("nectar-volume-edge-enabled") !== "false"
+    () => localStorage.getItem("nectar-volume-edge-enabled") === "true"
   );
   const [brightnessOverlayEnabled, setBrightnessOverlayEnabled] = useState(
-    () => localStorage.getItem("nectar-brightness-overlay-enabled") !== "false"
+    () => localStorage.getItem("nectar-brightness-overlay-enabled") === "true"
   );
   const [brightnessEdgeEnabled, setBrightnessEdgeEnabled] = useState(
-    () => localStorage.getItem("nectar-brightness-edge-enabled") !== "false"
+    () => localStorage.getItem("nectar-brightness-edge-enabled") === "true"
   );
   const [mediaAmbienceEnabled, setMediaAmbienceEnabled] = useState(true);
   const [mediaCompactGlowEnabled, setMediaCompactGlowEnabled] = useState(true);

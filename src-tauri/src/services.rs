@@ -33,7 +33,8 @@ static KEYBOARD_HOOK_APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 /// Whether a HUD overlay is enabled. When it's off, its keys and the native flyout stay with Windows.
 fn overlay_enabled(app: &AppHandle, key: &str) -> bool {
-    crate::utils::get_setting_str(app, key).map(|v| v != "false").unwrap_or(true)
+    // Cyexs: the side HUDs are opt-in; unset means Windows keeps its own volume/brightness OSD.
+    crate::utils::get_setting_str(app, key).map(|v| v == "true").unwrap_or(false)
 }
 
 fn hook_overlay_enabled(key: &str) -> bool {

@@ -711,15 +711,15 @@ function OverlayApp() {
   const [volume, setVolume] = useState(0.5);
   const [isMuted, setIsMuted] = useState(false);
   const [mixerExpanded, setMixerExpanded] = useState(false);
-  const [volumeOverlayEnabled, setVolumeOverlayEnabled] = useState(() => localStorage.getItem("nectar-volume-overlay-enabled") !== "false");
-  const [volumeEdgeEnabled, setVolumeEdgeEnabled] = useState(() => localStorage.getItem("nectar-volume-edge-enabled") !== "false");
+  const [volumeOverlayEnabled, setVolumeOverlayEnabled] = useState(() => localStorage.getItem("nectar-volume-overlay-enabled") === "true");
+  const [volumeEdgeEnabled, setVolumeEdgeEnabled] = useState(() => localStorage.getItem("nectar-volume-edge-enabled") === "true");
 
   // Brightness state
   const [brightness, setBrightness] = useState(50);
   const [volumeSide, setVolumeSide] = useState<Side>(() => asSide(localStorage.getItem("nectar-volume-side"), "left"));
   const [brightnessSide, setBrightnessSide] = useState<Side>(() => asSide(localStorage.getItem("nectar-brightness-side"), "right"));
-  const [brightnessOverlayEnabled, setBrightnessOverlayEnabled] = useState(() => localStorage.getItem("nectar-brightness-overlay-enabled") !== "false");
-  const [brightnessEdgeEnabled, setBrightnessEdgeEnabled] = useState(() => localStorage.getItem("nectar-brightness-edge-enabled") !== "false");
+  const [brightnessOverlayEnabled, setBrightnessOverlayEnabled] = useState(() => localStorage.getItem("nectar-brightness-overlay-enabled") === "true");
+  const [brightnessEdgeEnabled, setBrightnessEdgeEnabled] = useState(() => localStorage.getItem("nectar-brightness-edge-enabled") === "true");
 
   // Shared state
   const [scale, setScale] = useState(() => parseFloat(localStorage.getItem("nectar-scale") || "1.0"));
