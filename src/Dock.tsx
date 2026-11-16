@@ -12,7 +12,7 @@ import { useT } from './i18n';
 import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon } from './icons';
 import { setVisibleInterval } from "./hooks/visibleInterval";
 import { appAttention } from "./attention";
-import { DockStatus, StatusPanel } from './DockStatus';
+import { DockStatus, StatusPanel, DockClock } from './DockStatus';
 
 interface AppInfo {
   name: string;
@@ -1129,6 +1129,18 @@ const Dock = memo(function Dock() {
     }
   }, [contextMenu, contextMenuHeight, contextMenuWidth]);
 
+  // Panels that switch views (status panel lists) change size without a new contextMenu; re-measure them.
+  useEffect(() => {
+    if (!contextMenu || !menuRef.current) return;
+    const el = menuRef.current;
+    const ro = new ResizeObserver(() => {
+      setContextMenuHeight(el.offsetHeight);
+      setContextMenuWidth(el.getBoundingClientRect().width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [contextMenu]);
+
   useEffect(() => {
     let open = false;
     let rect = null;
@@ -2001,6 +2013,7 @@ const Dock = memo(function Dock() {
                 setContextMenuWidth(0);
                 setContextMenu({ x: r.left + r.width / 2, y: d ? d.top : r.top, app: null, kind: 'status' });
               }} />
+              <DockClock />
 
               {dockShowDesktop && (
                 <div

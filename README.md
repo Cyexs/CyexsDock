@@ -16,6 +16,9 @@ Cyexs Dock, [kua8/Nectar](https://github.com/kua8/Nectar) projesinin (v1.10.0) d
 - **Otomatik güncelleme kapalı:** program internetten kendini güncellemez. Yeni sürüm için kaynaktan yeniden derlenir.
 - **Bildirimler çentikte:** Windows bildirimleri çentikte uygulama simgesiyle birlikte açılır. Fareyle üzerine gelince büyür, tıklayınca bildirimi gönderen uygulamayı açar.
 - **Dock'ta sistem köşesi:** Wi-Fi, ses ve pil simgeleri ile gizli simgeler düğmesi dock'un sağında. Tıklayınca Wi-Fi/Bluetooth aç-kapa, parlaklık ve ses ayarları olan bir panel açılır.
+- **Dock'ta saat ve tarih:** tıklayınca takvim açılır.
+- **Durum paneli:** Wi-Fi ağları (şifreyle bağlanma), Bluetooth cihazları, ses çıkışı ve uygulama ses seviyeleri.
+- **Bildirim geçmişi:** son 10 bildirim durum panelinde. Her uygulamanın bildirimleri tek tıkla çentikte susturulabilir. Aynı kişiden art arda gelen bildirimler tek kartta "+n" olarak toplanır.
 - **Başlat düğmesine sağ tık:** Windows'un Win+X menüsündeki öğeler (Ayarlar, Görev Yöneticisi, Terminal, Kapat vb.) Cyexs görünümünde.
 - **Düzeltmeler:** Wi-Fi/Bluetooth aç-kapa, uzun sağ tık menülerinin tıklanması ve tanıtım turunun her açılışta çıkması düzeltildi.
 

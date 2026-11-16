@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ChevronLeft, Lock, X, Bluetooth, Check, Speaker } from "lucide-react";
 import { useT } from "../i18n";
 import { setVisibleInterval } from "../hooks/visibleInterval";
+import "./ConnectionsView.css";
 
 interface WifiNetwork {
   ssid: string;

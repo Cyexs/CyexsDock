@@ -406,13 +406,20 @@ function App() {
   }, []);
 
   // Windows toast mirrored into the notch (notifications.rs): 8 s, held open while hovered.
-  type NotchNotif = { app: string; title: string; body: string; icon?: string | null; aumid?: string };
+  type NotchNotif = { app: string; title: string; body: string; icon?: string | null; aumid?: string; count?: number };
   const [notif, setNotif] = useState<NotchNotif | null>(null);
   const notifHoveredRef = useRef(false);
   useEffect(() => {
-    const un = listen<NotchNotif>("notch-notification", (e) => {
+    const un = listen<NotchNotif>("notch-notification", async (e) => {
+      // Apps muted from the dock's notification list never pop the notch (they still land in the list).
+      const saved = await invoke<Record<string, unknown>>("load_settings").catch(() => ({} as Record<string, unknown>));
+      const muted = saved["cyexs-muted-notif-apps"];
+      if (Array.isArray(muted) && muted.includes(e.payload.app)) return;
       notifHoveredRef.current = false;
-      setNotif(e.payload);
+      // Same app and title while the card is still up (a chat sending several messages): one card with a count.
+      setNotif((prev) => prev && prev.app === e.payload.app && prev.title === e.payload.title
+        ? { ...e.payload, count: (prev.count ?? 1) + 1 }
+        : { ...e.payload, count: 1 });
       triggerEventPeek(8000);
     });
     return () => { un.then((f) => f()); };
@@ -2214,7 +2221,10 @@ function App() {
                       ? <img className="notif-card-icon" src={notif.icon} alt="" draggable={false} />
                       : <div className="notif-card-icon notif-card-icon-fallback">{(notif.app || "?")[0]}</div>}
                     <div className="notif-card-text">
-                      <div className="notif-card-app">{notif.app || "Bildirim"}</div>
+                      <div className="notif-card-app">
+                        {notif.app || "Bildirim"}
+                        {(notif.count ?? 1) > 1 && <span className="notif-card-count">+{(notif.count ?? 1) - 1}</span>}
+                      </div>
                       {notif.title && <div className="notif-card-title">{notif.title}</div>}
                       {notif.body && <div className="notif-card-body">{notif.body}</div>}
                     </div>
