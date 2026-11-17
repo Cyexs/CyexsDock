@@ -1189,6 +1189,8 @@ const Dock = memo(function Dock() {
       };
       open = true;
     }
+    // Keep the dock click-through while a stack file is being dragged out (see setStackDragOut).
+    if (stackDragOutRef.current) { open = false; rect = null; }
 
     invoke('set_menu_open', { open, rect }).catch(() => {});
 
@@ -1406,8 +1408,18 @@ const Dock = memo(function Dock() {
     invoke('set_dock_dragging', { dragging: isDragging }).catch(() => {});
   }, [isDragging]);
 
+  // A file dragged out of a stack takes focus from the dock; that blur must not end the drag. During the
+  // drag the dock window is made click-through again (menu closed for hit-testing) so its transparent area
+  // doesn't swallow the drop; the popup stays mounted until the drag ends.
+  const stackDragOutRef = useRef(false);
+  const setStackDragOut = (active: boolean) => {
+    stackDragOutRef.current = active;
+    if (active) invoke('set_menu_open', { open: false, rect: null }).catch(() => {});
+  };
+
   useEffect(() => {
     const handleBlur = () => {
+      if (stackDragOutRef.current) return;
       closeMenu();
       closePopup();
     };
@@ -2085,7 +2097,7 @@ const Dock = memo(function Dock() {
           {contextMenu.kind === 'status' ? (
             <StatusPanel onClose={closeMenu} />
           ) : contextMenu.kind === 'stack' && contextMenu.stack ? (
-            <StackPopup stack={contextMenu.stack} onClose={closeMenu} />
+            <StackPopup stack={contextMenu.stack} onClose={closeMenu} onDragOut={setStackDragOut} />
           ) : contextMenu.kind === 'stackmenu' && contextMenu.stack ? (
             <>
               <div className="menu-item" onClick={() => { invoke('shelf_open', { path: contextMenu.stack!.path }).catch(() => {}); closeMenu(); }}>{t("stack.openInExplorer")}</div>

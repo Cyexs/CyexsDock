@@ -18,7 +18,9 @@ const extOf = (name: string) => {
 };
 
 /** Grid of the folder's newest items. Lives inside the dock's `.context-menu` panel, so positioning and click-through come from there. */
-export function StackPopup({ stack, onClose }: { stack: Stack; onClose: () => void }) {
+const THUMB_WORKERS = 3;
+
+export function StackPopup({ stack, onClose, onDragOut }: { stack: Stack; onClose: () => void; onDragOut: (active: boolean) => void }) {
   const t = useT();
   const [entries, setEntries] = useState<StackEntry[] | null>(null);
   const [missing, setMissing] = useState(false);
@@ -35,11 +37,27 @@ export function StackPopup({ stack, onClose }: { stack: Stack; onClose: () => vo
       .then((list) => {
         if (!alive) return;
         setEntries(list);
-        list.filter((e) => !e.isDir).forEach((e) => {
-          invoke<string | null>("shelf_thumbnail", { path: e.path })
-            .then((thumb) => { if (alive && thumb) setThumbs((prev) => ({ ...prev, [e.path]: thumb })); })
-            .catch(() => {});
-        });
+        // Thumbnails: a few at a time, after the grid has painted, and merged into one update per frame,
+        // so opening the stack doesn't stall on 30 shell thumbnails at once.
+        const queue = list.filter((e) => !e.isDir).map((e) => e.path);
+        let pending: Record<string, string> = {};
+        let frame = 0;
+        const flush = () => {
+          frame = 0;
+          if (!alive) return;
+          const batch = pending;
+          pending = {};
+          setThumbs((prev) => ({ ...prev, ...batch }));
+        };
+        const worker = async () => {
+          for (let path = queue.shift(); path && alive; path = queue.shift()) {
+            const thumb = await invoke<string | null>("shelf_thumbnail", { path }).catch(() => null);
+            if (!thumb || !alive) continue;
+            pending[path] = thumb;
+            if (!frame) frame = requestAnimationFrame(flush);
+          }
+        };
+        setTimeout(() => { for (let i = 0; i < THUMB_WORKERS; i++) worker(); }, 150);
       })
       .catch(() => { if (alive) setMissing(true); });
     return () => { alive = false; };
@@ -66,7 +84,11 @@ export function StackPopup({ stack, onClose }: { stack: Stack; onClose: () => vo
     const icon = thumbs[entry.path] ?? dragIcon.current;
     if (!icon) return;
     dragged.current = true;
+    // While the OS drag runs, the dock must neither close this popup on blur nor auto-hide.
+    onDragOut(true);
     try { await startDrag({ item: [entry.path], icon, mode: "copy" }); } catch { /* drag cancelled or refused */ }
+    onDragOut(false);
+    onClose();
   };
 
   return (
