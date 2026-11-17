@@ -164,7 +164,7 @@ function buildFeedbackUrl(reason: string, comment: string, appVersion: string): 
     comment: comment.trim(),
     version: appVersion || "unknown",
   });
-  return `https://github.com/kua8/Nectar/issues/new?${params.toString()}`;
+  return `https://github.com/Cyexs/CyexsDock/issues/new?${params.toString()}`;
 }
 
 export default function App() {
