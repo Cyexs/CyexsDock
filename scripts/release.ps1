@@ -16,7 +16,7 @@ function Invoke-Step([string]$label, [scriptblock]$body) {
     if ($code -ne 0) { throw "$label failed (exit code $code)" }
 }
 
-$repo = "kua8/Nectar"
+$repo = "Cyexs/CyexsDock"
 $tag = "v$Version"
 $root = Resolve-Path "$PSScriptRoot/.."
 Set-Location $root
@@ -28,9 +28,6 @@ $versionFiles = @{
     "package.json"                            = (Get-Content package.json -Raw | ConvertFrom-Json).version
     "src-tauri/tauri.conf.json"               = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
     "src-tauri/Cargo.toml"                    = [regex]::Match((Get-Content src-tauri/Cargo.toml -Raw), '(?m)^version = "([^"]*)"').Groups[1].Value
-    "installer-app/package.json"              = (Get-Content installer-app/package.json -Raw | ConvertFrom-Json).version
-    "installer-app/src-tauri/tauri.conf.json" = (Get-Content installer-app/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-    "installer-app/src-tauri/Cargo.toml"      = [regex]::Match((Get-Content installer-app/src-tauri/Cargo.toml -Raw), '(?m)^version = "([^"]*)"').Groups[1].Value
 }
 $mismatched = $versionFiles.GetEnumerator() | Where-Object { $_.Value -ne $Version }
 if ($mismatched) {
@@ -67,33 +64,19 @@ if ($NotesFile) {
 Write-Host "`nRelease notes:`n$notes`n"
 
 Invoke-Step "Installing frontend dependencies" { bun install }
-Invoke-Step "Building Nectar (NSIS update installer)" { bun run tauri build --bundles nsis }
+Invoke-Step "Building CyexsDock (NSIS installer)" { bun run tauri build --bundles nsis }
 
-$exe = Join-Path $root "src-tauri/target/release/nectar.exe"
-$setup = Join-Path $root "src-tauri/target/release/bundle/nsis/nectar_${Version}_x64-setup.exe"
+$exe = Join-Path $root "src-tauri/target/release/cyexs.exe"
+$setup = Join-Path $root "src-tauri/target/release/bundle/nsis/CyexsDock_${Version}_x64-setup.exe"
 foreach ($f in @($exe, $setup, "$setup.sig")) {
     if (-not (Test-Path $f)) { throw "Expected build output not found: $f" }
 }
 
 Write-Host "`n==> Packaging portable build" -ForegroundColor Cyan
-$portable = "nectar-$Version-portable-windows-x64.zip"
+$portable = "CyexsDock-$Version-portable-windows-x64.zip"
 Compress-Archive -Path $exe -DestinationPath (Join-Path $out $portable)
 
-Write-Host "`n==> Packaging installer payload" -ForegroundColor Cyan
-$payload = Join-Path $root "installer-app/src-tauri/payload.zip"
-Compress-Archive -Path $exe -DestinationPath $payload -Force
-
-Push-Location installer-app
-try {
-    Invoke-Step "Installing installer-app dependencies" { npm install }
-    Invoke-Step "Building custom installer" { npm run tauri build -- --no-bundle }
-} finally {
-    Pop-Location
-}
-$installerName = "Nectar-Setup-$Version.exe"
-Copy-Item (Join-Path $root "installer-app/src-tauri/target/release/nectar-installer.exe") (Join-Path $out $installerName)
-
-$setupName = "nectar_${Version}_x64-updater.exe"
+$setupName = "CyexsDock-Setup-$Version.exe"
 Copy-Item $setup (Join-Path $out $setupName)
 $platform = [ordered]@{
     signature = (Get-Content "$setup.sig" -Raw).Trim()
@@ -111,12 +94,12 @@ $manifest = [ordered]@{
 [IO.File]::WriteAllText((Join-Path $out "latest.json"), ($manifest | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 [IO.File]::WriteAllText((Join-Path $out "notes.md"), $notes, (New-Object Text.UTF8Encoding $false))
 
-$sums = @($setupName, $portable, $installerName) | ForEach-Object {
+$sums = @($setupName, $portable) | ForEach-Object {
     "{0}  {1}" -f (Get-FileHash (Join-Path $out $_) -Algorithm SHA256).Hash.ToLower(), $_
 }
 [IO.File]::WriteAllText((Join-Path $out "SHA256SUMS.txt"), (($sums -join "`n") + "`n"), (New-Object Text.UTF8Encoding $false))
 
-$assets = @("latest.json", $setupName, $portable, $installerName, "SHA256SUMS.txt") | ForEach-Object { Join-Path $out $_ }
+$assets = @("latest.json", $setupName, $portable, "SHA256SUMS.txt") | ForEach-Object { Join-Path $out $_ }
 Write-Host "`nBuilt:" -ForegroundColor Green
 $assets | ForEach-Object { Write-Host ("  {0}  ({1:N1} MB)" -f (Split-Path $_ -Leaf), ((Get-Item $_).Length / 1MB)) }
 
@@ -136,7 +119,7 @@ if ($exists) {
 } else {
     $sha = (git rev-parse HEAD).Trim()
     Invoke-Step "Creating draft release $tag" {
-        gh release create $tag --repo $repo --target $sha --title "Nectar $tag" --notes-file (Join-Path $out "notes.md") --draft @assets
+        gh release create $tag --repo $repo --target $sha --title "CyexsDock $tag" --notes-file (Join-Path $out "notes.md") --draft @assets
     }
     if ($Prerelease) {
         Invoke-Step "Publishing $tag as a pre-release" { gh release edit $tag --repo $repo --draft=false --prerelease }
