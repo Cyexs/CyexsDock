@@ -880,9 +880,35 @@ pub async fn get_active_windows() -> Vec<AppInfo> {
     }).await.unwrap_or_default()
 }
 
+/// A window in its normal state but outside every monitor (some apps reopen at the -32000 spot Windows
+/// gives minimized windows) can't be seen or dragged back. Centers it on the primary work area.
+unsafe fn rescue_offscreen(hwnd: HWND) -> bool {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromRect, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONULL, MONITOR_DEFAULTTOPRIMARY};
+    use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, IsIconic, SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+
+    let mut rect = RECT::default();
+    if IsIconic(hwnd).as_bool() || GetWindowRect(hwnd, &mut rect).is_err() || !MonitorFromRect(&rect, MONITOR_DEFAULTTONULL).is_invalid() {
+        return false;
+    }
+    let mut info = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+    if !GetMonitorInfoW(MonitorFromWindow(HWND(std::ptr::null_mut()), MONITOR_DEFAULTTOPRIMARY), &mut info).as_bool() {
+        return false;
+    }
+    let work = info.rcWork;
+    let w = (rect.right - rect.left).clamp(200, work.right - work.left);
+    let h = (rect.bottom - rect.top).clamp(150, work.bottom - work.top);
+    let x = work.left + (work.right - work.left - w) / 2;
+    let y = work.top + (work.bottom - work.top - h) / 2;
+    let moved = SetWindowPos(hwnd, None, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE).is_ok();
+    crate::diagnostics::log(&format!("focus: {:?} was off every monitor at {},{}; moved on screen: {moved}", hwnd.0, rect.left, rect.top));
+    moved
+}
+
 unsafe fn force_set_foreground(hwnd: HWND) {
     use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 
+    rescue_offscreen(hwnd);
     let _ = SetForegroundWindow(hwnd);
 
     use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, IsIconic, SwitchToThisWindow};
@@ -1003,6 +1029,9 @@ pub async fn focus_window(hwnd: isize) {
             force_set_foreground(hwnd);
         } else if IsIconic(hwnd).as_bool() {
             let _ = ShowWindow(hwnd, SW_RESTORE);
+            force_set_foreground(hwnd);
+        } else if rescue_offscreen(hwnd) {
+            // It was in front but invisible: show it instead of minimizing it.
             force_set_foreground(hwnd);
         } else {
             let fg = GetForegroundWindow();
