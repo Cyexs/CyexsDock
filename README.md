@@ -13,7 +13,7 @@ Cyexs Dock, [kua8/Nectar](https://github.com/kua8/Nectar) projesinin (v1.10.0) d
 ## Nectar'dan farkları
 
 - **Ad ve simge:** uygulamanın adı Cyexs, simgesi kedi logosu.
-- **Otomatik güncelleme kapalı:** program internetten kendini güncellemez. Yeni sürüm için kaynaktan yeniden derlenir.
+- **Güncellemeler bu depodan gelir:** program yeni sürümü [Cyexs/CyexsDock sürümlerinden](https://github.com/Cyexs/CyexsDock/releases) alır. Sürümler CyexsDock anahtarıyla imzalanır.
 - **Bildirimler çentikte:** Windows bildirimleri çentikte uygulama simgesiyle birlikte açılır. Fareyle üzerine gelince büyür, tıklayınca bildirimi gönderen uygulamayı açar.
 - **Dock'ta sistem köşesi:** Wi-Fi, ses ve pil simgeleri ile gizli simgeler düğmesi dock'un sağında. Tıklayınca Wi-Fi/Bluetooth aç-kapa, parlaklık ve ses ayarları olan bir panel açılır.
 - **Dock'ta saat ve tarih:** tıklayınca takvim açılır.
@@ -24,7 +24,7 @@ Cyexs Dock, [kua8/Nectar](https://github.com/kua8/Nectar) projesinin (v1.10.0) d
 
 ## Kurulum (kaynaktan derleme)
 
-Hazır kurulum dosyası yok; program kaynaktan derlenir.
+Hazır kurulum dosyası [sürümler sayfasında](https://github.com/Cyexs/CyexsDock/releases/latest). Kaynaktan derlemek isterseniz:
 
 Gerekenler:
 
