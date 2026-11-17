@@ -34,6 +34,7 @@ import {
   BellRing,
   Globe,
   Volume2,
+  MoonStar,
 } from "lucide-react";
 import { DEFAULT_PANEL_ORDER, type CcLayout, type PanelId } from "../panelOrder";
 import { ControlCenterConfig } from "../components/ControlCenterConfig";
@@ -71,6 +72,8 @@ interface NotchTabProps {
   replaceNotchModes: (next: Record<string, string>) => void;
   calendarEnabled: boolean;
   toggleCalendar: () => void;
+  prayerPanel: boolean;
+  togglePrayerPanel: () => void;
   timerEnabled: boolean;
   toggleTimerEnabled: () => void;
   timerSoundEnabled: boolean;
@@ -150,6 +153,8 @@ export function NotchTab({
   replaceNotchModes,
   calendarEnabled,
   toggleCalendar,
+  prayerPanel,
+  togglePrayerPanel,
   timerEnabled,
   toggleTimerEnabled,
   timerSoundEnabled,
@@ -301,6 +306,15 @@ export function NotchTab({
         </SettingRow>
 
         {calendarEnabled && (
+          <SettingRow icon={MoonStar} label={t("notch.prayerPanel")} desc={t("notch.prayerPanel.desc")}>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={prayerPanel} onChange={togglePrayerPanel} />
+              <span className="slider"></span>
+            </label>
+          </SettingRow>
+        )}
+
+        {calendarEnabled && !prayerPanel && (
           <SettingRow
             icon={CloudCog}
             label={t("notch.calendarSync")}

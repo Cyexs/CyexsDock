@@ -201,6 +201,8 @@ function SettingsApp() {
               replaceNotchModes={settings.replaceNotchModesByMonitor}
               calendarEnabled={settings.calendarEnabled}
               toggleCalendar={settings.toggleCalendar}
+              prayerPanel={settings.prayerPanel}
+              togglePrayerPanel={settings.togglePrayerPanel}
               timerEnabled={settings.timerEnabled}
               toggleTimerEnabled={settings.toggleTimerEnabled}
               timerSoundEnabled={settings.timerSoundEnabled}

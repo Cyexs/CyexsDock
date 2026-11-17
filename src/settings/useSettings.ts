@@ -55,6 +55,7 @@ export function useSettings() {
   const [autostart, setAutostart] = useState(false);
   const [weatherEnabled, setWeatherEnabled] = useState(true);
   const [calendarEnabled, setCalendarEnabled] = useState(true);
+  const [prayerPanel, setPrayerPanel] = useState(true);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [timerSoundEnabled, setTimerSoundEnabled] = useState(true);
   const [notchTimerProgress, setNotchTimerProgress] = useState(
@@ -270,6 +271,7 @@ export function useSettings() {
 
       apply(getVal("nectar-weather-enabled"), setWeatherEnabled, readBool);
       apply(getVal("nectar-calendar-enabled"), setCalendarEnabled, readBool);
+      apply(getVal("cyexs-prayer-panel"), setPrayerPanel, readBool);
       apply(getVal("nectar-timer-enabled") ?? getVal("nectar-calendar-enabled"), setTimerEnabled, readBool);
       apply(getVal("nectar-timer-sound-enabled"), setTimerSoundEnabled, readBool);
       apply(getVal("nectar-notch-timer-progress"), setNotchTimerProgress, readBool);
@@ -448,6 +450,7 @@ export function useSettings() {
     "nectar-dock-mixed-reorder": setDockMixedReorder,
     "nectar-weather-enabled": setWeatherEnabled,
     "nectar-calendar-enabled": setCalendarEnabled,
+    "cyexs-prayer-panel": setPrayerPanel,
     "nectar-timer-enabled": setTimerEnabled,
     "nectar-timer-sound-enabled": setTimerSoundEnabled,
     "nectar-notch-timer-progress": setNotchTimerProgress,
@@ -610,6 +613,12 @@ export function useSettings() {
     const next = !weatherEnabled;
     setWeatherEnabled(next);
     saveSetting("nectar-weather-enabled", String(next));
+  };
+
+  const togglePrayerPanel = () => {
+    const next = !prayerPanel;
+    setPrayerPanel(next);
+    saveSetting("cyexs-prayer-panel", String(next));
   };
 
   const toggleCalendar = () => {
@@ -1283,6 +1292,8 @@ export function useSettings() {
     setNotchModeValue,
     calendarEnabled,
     toggleCalendar,
+    prayerPanel,
+    togglePrayerPanel,
     timerEnabled,
     toggleTimerEnabled,
     timerSoundEnabled,

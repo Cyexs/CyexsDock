@@ -12,7 +12,8 @@ import { CompactMediaPlayer } from "./CompactMediaPlayer";
 import { artTheme, FALLBACK_THEME, type ArtTheme } from "./music/palette";
 import { useWeather } from "./hooks/useWeather";
 import { useMarkets, formatTry, type Quote } from "./hooks/useMarkets";
-import { usePrayerTimes } from "./hooks/usePrayerTimes";
+import { usePrayerTimes, type NextPrayer } from "./hooks/usePrayerTimes";
+import { NotchPrayer } from "./components/NotchPrayer";
 import { useSettingsSync } from "./hooks/useSettingsSync";
 import { useTrailingThrottle } from "./hooks/useTrailingThrottle";
 import { useCaldav } from "./hooks/useCaldav";
@@ -412,7 +413,7 @@ function App() {
   }, []);
 
   // Windows toast mirrored into the notch (notifications.rs): 8 s, held open while hovered.
-  type NotchNotif = { app: string; title: string; body: string; icon?: string | null; aumid?: string; count?: number };
+  type NotchNotif = { app: string; title: string; body: string; icon?: string | null; aumid?: string; count?: number; durationMs?: number };
   const [notif, setNotif] = useState<NotchNotif | null>(null);
   const notifHoveredRef = useRef(false);
   // Focus mode: while the timer runs, toasts are counted instead of shown (they still land in the dock's list).
@@ -438,7 +439,7 @@ function App() {
     if (!notif) return;
     if (isHovered) { notifHoveredRef.current = true; return; }
     // Once seen up close, leave quickly; otherwise give it the full 8 s.
-    const timer = setTimeout(() => setNotif(null), notifHoveredRef.current ? 1500 : 8000);
+    const timer = setTimeout(() => setNotif(null), notifHoveredRef.current ? 1500 : notif.durationMs ?? 8000);
     return () => clearTimeout(timer);
   }, [notif, isHovered]);
 
@@ -733,6 +734,7 @@ function App() {
   // Settings state
   const [settingsWeatherEnabled, setSettingsWeatherEnabled] = useState(() => localStorage.getItem("nectar-weather-enabled") !== "false");
   const [settingsCalendarEnabled, setSettingsCalendarEnabled] = useState(() => localStorage.getItem("nectar-calendar-enabled") !== "false");
+  const [settingsPrayerPanel, setSettingsPrayerPanel] = useState(() => localStorage.getItem("cyexs-prayer-panel") !== "false");
   const [settingsTimerEnabled, setSettingsTimerEnabled] = useState(
     () => (localStorage.getItem("nectar-timer-enabled") ?? localStorage.getItem("nectar-calendar-enabled")) !== "false",
   );
@@ -802,7 +804,22 @@ function App() {
   const { temperature, weatherCondition, weatherIcon: WeatherIcon, cityName, tempUnit } = useWeather(settingsWeatherEnabled);
   const placedWidgets = [...statusWidgets.left, ...statusWidgets.right];
   const markets = useMarkets(placedWidgets.some((id) => id === "usd" || id === "eur" || id === "gold"));
-  const nextPrayer = usePrayerTimes(placedWidgets.includes("prayer"));
+  const prayerPanel = settingsCalendarEnabled && settingsPrayerPanel;
+  const prayer = usePrayerTimes(placedWidgets.includes("prayer") || prayerPanel);
+  const nextPrayer = prayer.next;
+  // When a prayer time arrives (the next one rolls over), show it in the notch for 10 s.
+  const lastPrayerRef = useRef<NextPrayer | null>(null);
+  useEffect(() => {
+    const prev = lastPrayerRef.current;
+    lastPrayerRef.current = nextPrayer;
+    if (!prev || !nextPrayer || prev.name === nextPrayer.name || prev.name === "Sunrise") return;
+    // Only if it just happened, not when the app or the cache caught up later.
+    const since = Date.now() - prev.at.getTime();
+    if (since < 0 || since > 2 * 60 * 1000) return;
+    const clock = prev.at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: !timeFormat24h });
+    setNotif({ app: prayer.city || t("widgets.prayer"), title: t("prayer.arrived", { name: t(`prayer.${prev.name}`) }), body: clock, durationMs: 10_000 });
+    triggerEventPeek(10_000);
+  }, [nextPrayer?.name]);
 
   const refreshNotchMode = () => {
     invoke<string>('get_notch_mode_for_window').then(setNotchMode).catch(() => {});
@@ -831,6 +848,7 @@ function App() {
 
       setSettingsWeatherEnabled(getVal("nectar-weather-enabled", "true") !== "false");
       setSettingsCalendarEnabled(getVal("nectar-calendar-enabled", "true") !== "false");
+      setSettingsPrayerPanel(getVal("cyexs-prayer-panel", "true") !== "false");
       setSettingsTimerEnabled((getVal("nectar-timer-enabled") ?? getVal("nectar-calendar-enabled", "true")) !== "false");
       setSettingsTimerSoundEnabled(getVal("nectar-timer-sound-enabled", "true") !== "false");
       setSettingsStopwatchEnabled((getVal("nectar-stopwatch-enabled") ?? getVal("nectar-calendar-enabled", "true")) !== "false");
@@ -986,6 +1004,7 @@ function App() {
     {
       "nectar-weather-enabled": setSettingsWeatherEnabled,
       "nectar-calendar-enabled": setSettingsCalendarEnabled,
+      "cyexs-prayer-panel": (v) => setSettingsPrayerPanel(v !== false && v !== "false"),
       "nectar-timer-enabled": setSettingsTimerEnabled,
       "nectar-timer-sound-enabled": setSettingsTimerSoundEnabled,
       "nectar-notch-timer-progress": setSettingsTimerProgressEnabled,
@@ -3003,7 +3022,9 @@ function App() {
                     exit={{ opacity: 0, transition: { duration: 0.1 } }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   >
-                    {settingsCalendarEnabled && (
+                    {prayerPanel ? (
+                      <NotchPrayer prayer={prayer} solo={!showClockColumn} />
+                    ) : settingsCalendarEnabled && (
                       <div className="calendar-column">
                         <NotchCalendar caldav={caldav} hour12={!timeFormat24h} />
                       </div>

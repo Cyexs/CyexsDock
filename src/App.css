@@ -2802,3 +2802,108 @@ img.notif-card-icon { transform: scale(1.35); }
 .notif-card-body { font-size: 13px; line-height: 18px; opacity: 0.85; white-space: normal; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
 .notif-card.expanded .notif-card-body { -webkit-line-clamp: 18; }
 .notif-card-count { margin-left: 6px; padding: 0 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.18); opacity: 1; letter-spacing: 0; }
+
+/* Prayer times panel (left column of the notch calendar view) */
+.prayer-column {
+    flex: 1.2;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 16px;
+}
+
+.prayer-location {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    max-width: 100%;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--nectar-border, rgba(255, 255, 255, 0.1));
+    background: var(--nectar-group-bg, rgba(255, 255, 255, 0.05));
+    color: var(--nectar-text, white);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.prayer-location span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.prayer-location:hover {
+    background: var(--nectar-border, rgba(255, 255, 255, 0.15));
+}
+
+.prayer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.prayer-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--nectar-text, white);
+}
+
+.prayer-row span:last-child {
+    font-variant-numeric: tabular-nums;
+}
+
+.prayer-row.next {
+    background: var(--nectar-highlight, var(--nectar-text, white));
+    color: var(--nectar-on-highlight, var(--nectar-bg-expanded, black));
+    font-weight: 700;
+}
+
+.prayer-left {
+    font-size: 11px;
+    color: var(--nectar-text-muted, rgba(255, 255, 255, 0.6));
+    padding: 0 10px;
+}
+
+.prayer-search {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.prayer-search input {
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--nectar-border, rgba(255, 255, 255, 0.15));
+    background: var(--nectar-group-bg, rgba(255, 255, 255, 0.05));
+    color: var(--nectar-text, white);
+    font-size: 12px;
+    outline: none;
+}
+
+.prayer-search-result {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--nectar-text, white);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.prayer-search-result span {
+    color: var(--nectar-text-muted, rgba(255, 255, 255, 0.6));
+}
+
+.prayer-search-result:hover {
+    background: var(--nectar-group-bg, rgba(255, 255, 255, 0.08));
+}
