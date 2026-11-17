@@ -2127,6 +2127,17 @@ pub fn set_splash_fullscreen(app: AppHandle, fullscreen: bool) {
                 let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height));
             }
             let _ = win.show();
+            // The splash normally ends from a JS timer; don't let a stalled webview keep a fullscreen overlay up.
+            if !crate::state::SPLASH_FINISHED.load(Ordering::Relaxed) {
+                let app = app.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(10));
+                    if !crate::state::SPLASH_FINISHED.load(Ordering::Relaxed) {
+                        crate::diagnostics::log("splash: never finished, forcing overlay hidden");
+                        set_splash_fullscreen(app, false);
+                    }
+                });
+            }
         } else {
             let _ = win.hide();
             crate::state::SPLASH_FINISHED.store(true, Ordering::Relaxed);

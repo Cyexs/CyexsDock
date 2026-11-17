@@ -3846,6 +3846,42 @@ pub fn start_window_style_guard(app: AppHandle) {
     });
 }
 
+/// Diagnostics for a reported black full-screen window: log any of our windows that stays
+/// visible and covers most of a monitor for 30 s, once per episode.
+pub fn start_large_window_logger(app: AppHandle) {
+    std::thread::spawn(move || {
+        let mut since: std::collections::HashMap<String, (Instant, bool)> = std::collections::HashMap::new();
+        loop {
+            std::thread::sleep(Duration::from_secs(5));
+            for (label, win) in app.webview_windows() {
+                let big = win.is_visible().unwrap_or(false)
+                    && match (win.outer_size(), win.current_monitor()) {
+                        (Ok(s), Ok(Some(m))) => (s.width as u64 * s.height as u64) * 10 >= (m.size().width as u64 * m.size().height as u64) * 8,
+                        _ => false,
+                    };
+                if !big {
+                    since.remove(&label);
+                    continue;
+                }
+                let entry = since.entry(label.clone()).or_insert((Instant::now(), false));
+                if entry.1 || entry.0.elapsed() < Duration::from_secs(30) { continue; }
+                entry.1 = true;
+                let ex = win.hwnd().map(|h| unsafe {
+                    windows::Win32::UI::WindowsAndMessaging::GetWindowLongPtrW(h, windows::Win32::UI::WindowsAndMessaging::GWL_EXSTYLE)
+                }).unwrap_or(0);
+                crate::diagnostics::log(&format!(
+                    "large window: '{label}' visible 30s+ pos={:?} size={:?} exstyle={ex:#x} click_through={} in_splash={} splash_finished={}",
+                    win.outer_position().ok(),
+                    win.outer_size().ok(),
+                    ex as usize & windows::Win32::UI::WindowsAndMessaging::WS_EX_TRANSPARENT.0 as usize != 0,
+                    crate::state::OVERLAY_IN_SPLASH.load(Ordering::Relaxed),
+                    crate::state::SPLASH_FINISHED.load(Ordering::Relaxed),
+                ));
+            }
+        }
+    });
+}
+
 static WEBVIEWS_WATCHED_AT: OnceLock<Instant> = OnceLock::new();
 static RECOVERING_FROM_WEBVIEW_FAILURE: AtomicBool = AtomicBool::new(false);
 

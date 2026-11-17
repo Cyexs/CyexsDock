@@ -359,6 +359,7 @@ fn main() {
             let _hook = services::setup_keyboard_hook(app.handle().clone());
             setup_taskbar_hook();
             start_window_style_guard(app.handle().clone());
+            start_large_window_logger(app.handle().clone());
             setup_audio_visualization(app.handle().clone());
             setup_settings_watcher(app.handle().clone());
             memory_saver::start_reclaim_worker(app.handle().clone());
@@ -379,6 +380,12 @@ fn main() {
                         loop {
                             let result = unsafe { WaitForSingleObject(h_event, INFINITE) };
                             if result == WAIT_OBJECT_0 {
+                                crate::diagnostics::log("single-instance: second launch, opening settings");
+                                // Don't open settings under the fullscreen splash overlay.
+                                let waited = std::time::Instant::now();
+                                while !SPLASH_FINISHED.load(Ordering::Relaxed) && waited.elapsed() < std::time::Duration::from_secs(15) {
+                                    std::thread::sleep(std::time::Duration::from_millis(100));
+                                }
                                 crate::commands::open_settings_window(app_handle.clone());
                             }
                         }
