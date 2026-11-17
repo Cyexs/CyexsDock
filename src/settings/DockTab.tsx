@@ -16,7 +16,7 @@ import { ShortcutField } from "./ShortcutField";
 const SEARCH_PROVIDERS = ["windows", "cmdpal", "ptrun", "raycast", "shortcut"];
 
 const START_ICON_PRESETS = [
-  { key: "default", src: "/nectar.png", label: "CyexsDock" },
+  { key: "default", src: "/cyexsdock.png", label: "CyexsDock" },
   { key: "windows", src: "/windows.svg", label: "Windows" },
 ];
 

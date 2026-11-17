@@ -127,7 +127,7 @@ export function AboutTab({
   return (
     <div className="about-tab-container">
       <div className="about-header">
-        <img src="/nectar.png" className="about-logo" alt="CyexsDock Logo" />
+        <img src="/cyexsdock.png" className="about-logo" alt="CyexsDock Logo" />
         <h1 className="about-title">CyexsDock</h1>
         <p className="about-version">{t("about.version", { version: appVersion || "—" })}</p>
         <button

@@ -161,7 +161,7 @@ function DockAppIcon({ src, alt, nectar }: { src: string | undefined; alt: strin
 function resolveStartIcon(startIcon: string): string {
   if (startIcon === "windows") return "/windows.svg";
   if (startIcon.startsWith("custom:")) return startIcon.slice("custom:".length);
-  return "/nectar.png";
+  return "/cyexsdock.png";
 }
 
 // Stable module-level constants so object references never change between renders,
@@ -1810,7 +1810,7 @@ const Dock = memo(function Dock() {
                     const isCyexsOrSettings = isCyexsWindow(app);
                     
                     return (icon || isCyexsOrSettings) ? (
-                      <DockAppIcon src={isCyexsOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
+                      <DockAppIcon src={isCyexsOrSettings ? "/cyexsdock.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
                     ) : (
                       <div className="fallback-icon">{app.name[0]}</div>
                     );
@@ -1893,7 +1893,7 @@ const Dock = memo(function Dock() {
                     const icon = customIcons[cacheKey] || (allowPathFallback && customIcons[app.path]) || iconsRef.current[cacheKey] || (allowPathFallback && iconsRef.current[app.path]) || app.icon;
                           const isCyexsOrSettings = isCyexsWindow(app);
                           return (icon || isCyexsOrSettings) ? (
-                            <DockAppIcon src={isCyexsOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
+                            <DockAppIcon src={isCyexsOrSettings ? "/cyexsdock.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
                           ) : (
                             <div className="fallback-icon">{app.name[0]}</div>
                           );
@@ -1974,7 +1974,7 @@ const Dock = memo(function Dock() {
                     const icon = customIcons[cacheKey] || (allowPathFallback && customIcons[app.path]) || iconsRef.current[cacheKey] || (allowPathFallback && iconsRef.current[app.path]) || app.icon;
                           const isCyexsOrSettings = isCyexsWindow(app);
                           return (icon || isCyexsOrSettings) ? (
-                            <DockAppIcon src={isCyexsOrSettings ? "/nectar.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
+                            <DockAppIcon src={isCyexsOrSettings ? "/cyexsdock.png" : (icon ?? undefined)} alt={app.name} nectar={isCyexsOrSettings} />
                           ) : (
                             <div className="fallback-icon">{app.name[0]}</div>
                           );
