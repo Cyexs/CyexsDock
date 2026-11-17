@@ -4344,6 +4344,64 @@ pub async fn pick_program(app: AppHandle) -> Result<Option<(String, String)>, St
 }
 
 #[tauri::command]
+pub async fn pick_folder(app: AppHandle) -> Result<Option<String>, String> {
+    let mut dialog = app.dialog().file().set_title("Choose a folder");
+    if let Some(dock) = app.get_webview_window("dock") {
+        dialog = dialog.set_parent(&dock);
+    }
+    let Some(path) = dialog.blocking_pick_folder() else { return Ok(None) };
+    Ok(Some(path.into_path().map_err(|e| e.to_string())?.to_string_lossy().into_owned()))
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+    modified: u64,
+    size: u64,
+}
+
+/// Lists a stack folder. The path comes from the webview, so it must be an existing directory.
+/// Hidden/system files and desktop.ini are skipped; `sort` is "name" or anything else for newest first.
+#[tauri::command]
+pub async fn list_folder_entries(path: String, sort: String, limit: usize) -> Result<Vec<FolderEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::os::windows::fs::MetadataExt;
+        const HIDDEN_OR_SYSTEM: u32 = 0x2 | 0x4;
+        let dir = std::path::Path::new(&path);
+        if !dir.is_dir() {
+            return Err("not_found".to_string());
+        }
+        let mut out: Vec<FolderEntry> = std::fs::read_dir(dir)
+            .map_err(|e| e.to_string())?
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let meta = e.metadata().ok()?;
+                let name = e.file_name().to_string_lossy().into_owned();
+                if meta.file_attributes() & HIDDEN_OR_SYSTEM != 0 || name.eq_ignore_ascii_case("desktop.ini") {
+                    return None;
+                }
+                let modified = meta.modified().ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map_or(0, |d| d.as_millis() as u64);
+                Some(FolderEntry { name, path: e.path().to_string_lossy().into_owned(), is_dir: meta.is_dir(), modified, size: meta.len() })
+            })
+            .collect();
+        if sort == "name" {
+            out.sort_by_key(|e| e.name.to_lowercase());
+        } else {
+            out.sort_by(|a, b| b.modified.cmp(&a.modified));
+        }
+        out.truncate(limit.clamp(1, 200));
+        Ok(out)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn pick_agent_sound(app: AppHandle, state: String) -> Result<bool, String> {
     const MAX_SOUND_BYTES: u64 = 3 * 1024 * 1024;
     if !AGENT_SOUND_STATES.contains(&state.as_str()) {

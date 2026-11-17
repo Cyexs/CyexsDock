@@ -13,6 +13,8 @@ import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon } from './icons';
 import { setVisibleInterval } from "./hooks/visibleInterval";
 import { appAttention } from "./attention";
 import { DockStatus, StatusPanel, DockClock } from './DockStatus';
+import { FolderIcon, StackPopup } from './DockStacks';
+import { Stack, STACKS_KEY, parseStacks, addStack, stackName } from './stacks';
 
 interface AppInfo {
   name: string;
@@ -589,7 +591,15 @@ const Dock = memo(function Dock() {
     setRenameApp(null);
     invoke('set_menu_open', { open: false, rect: null }).catch(() => {});
   };
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, app: AppInfo | null, kind?: 'status' } | null>(null);
+  // Folder stacks live in their own setting (like dockNames), so pinned_apps.json and AppInfo stay untouched.
+  const [stacks, setStacks] = useState<Stack[]>(() => parseStacks(localStorage.getItem(STACKS_KEY)));
+  const saveStacks = (next: Stack[]) => {
+    setStacks(next);
+    const value = JSON.stringify(next);
+    localStorage.setItem(STACKS_KEY, value);
+    invoke("save_setting", { key: STACKS_KEY, value }).catch(console.error);
+  };
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, app: AppInfo | null, kind?: 'status' | 'stack' | 'stackmenu', stack?: Stack } | null>(null);
   const [contextMenuHeight, setContextMenuHeight] = useState(0);
   const [contextMenuWidth, setContextMenuWidth] = useState(0);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
@@ -1101,6 +1111,21 @@ const Dock = memo(function Dock() {
     });
   };
 
+  const openStackPanel = (rect: DOMRect, kind: 'stack' | 'stackmenu', stack: Stack) => {
+    if (kind === 'stack' && contextMenu?.kind === 'stack' && contextMenu.stack?.path === stack.path) { closeMenu(); return; }
+    const d = dockRef.current?.getBoundingClientRect();
+    setHoveredApp(null);
+    setPreviewData(null);
+    setContextMenuHeight(0);
+    setContextMenuWidth(0);
+    setContextMenu({ x: rect.left + rect.width / 2, y: d ? d.top : rect.top, app: null, kind, stack });
+  };
+
+  const pickStackFolder = () => {
+    closeMenu();
+    invoke<string | null>('pick_folder').then((p) => { if (p) saveStacks(addStack(stacks, p)); }).catch(console.error);
+  };
+
   const closeMenu = () => {
     setContextMenu(null);
     setActiveSubmenu(null);
@@ -1551,7 +1576,7 @@ const Dock = memo(function Dock() {
     );
   };
 
-  const renderShortcut = (id: string, label: string, delay: number, onClick: (rect: DOMRect, e: React.MouseEvent) => void, icon: React.ReactNode) => (
+  const renderShortcut = (id: string, label: string, delay: number, onClick: (rect: DOMRect, e: React.MouseEvent) => void, icon: React.ReactNode, onContext?: (rect: DOMRect) => void) => (
     <motion.div
       key={id}
       initial={{ opacity: 0, scale: 0 }}
@@ -1560,6 +1585,7 @@ const Dock = memo(function Dock() {
       className="dock-icon-wrapper"
       onMouseEnter={() => setHoveredApp(id)}
       onMouseLeave={() => { setHoveredApp(null); setPressedApp(null); }}
+      onContextMenu={onContext && ((e) => { e.preventDefault(); e.stopPropagation(); onContext(e.currentTarget.getBoundingClientRect()); })}
     >
       {(!dockPreviewEnabled || hoveredApp === id) && <div className="tooltip">{label}</div>}
       <motion.div
@@ -1988,6 +2014,13 @@ const Dock = memo(function Dock() {
               </Reorder.Group>
               )}
 
+              {stacks.map((st, i) => renderShortcut(
+                `stack-${st.path}`, stackName(st.path), 0.28 + i * 0.02,
+                (rect) => openStackPanel(rect, 'stack', st),
+                <FolderIcon />,
+                (rect) => openStackPanel(rect, 'stackmenu', st)
+              ))}
+
               {!legacyMode && dockTray && (
                 // Hidden tray icons, next to Wi-Fi/volume/battery like the native taskbar corner.
                 <div
@@ -2051,6 +2084,19 @@ const Dock = memo(function Dock() {
         >
           {contextMenu.kind === 'status' ? (
             <StatusPanel onClose={closeMenu} />
+          ) : contextMenu.kind === 'stack' && contextMenu.stack ? (
+            <StackPopup stack={contextMenu.stack} onClose={closeMenu} />
+          ) : contextMenu.kind === 'stackmenu' && contextMenu.stack ? (
+            <>
+              <div className="menu-item" onClick={() => { invoke('shelf_open', { path: contextMenu.stack!.path }).catch(() => {}); closeMenu(); }}>{t("stack.openInExplorer")}</div>
+              {(['date', 'name'] as const).map((mode) => (
+                <div key={mode} className="menu-item" onClick={() => { saveStacks(stacks.map(s => s.path === contextMenu.stack!.path ? { ...s, sort: mode } : s)); closeMenu(); }}>
+                  {contextMenu.stack!.sort === mode ? '✓ ' : ''}{t(mode === 'date' ? "stack.sortDate" : "stack.sortName")}
+                </div>
+              ))}
+              <div className="menu-divider" />
+              <div className="menu-item quit" onClick={() => { saveStacks(stacks.filter(s => s.path !== contextMenu.stack!.path)); closeMenu(); }}>{t("stack.remove")}</div>
+            </>
           ) : contextMenu.app?.path === 'start' ? (
             <>
               {([
@@ -2161,6 +2207,9 @@ const Dock = memo(function Dock() {
               <div className="menu-item" onClick={() => { setShowAddPopup(true); closeMenu(); }}>
                 {t("dockmenu.addApp")}
               </div>
+              <div className="menu-item" onClick={pickStackFolder}>
+                {t("dockmenu.addStack")}
+              </div>
               {nectarOptionsMenu()}
               {contextMenu.app.is_running && (
                 <>
@@ -2183,6 +2232,9 @@ const Dock = memo(function Dock() {
             <>
               <div className="menu-item" onClick={() => { setShowAddPopup(true); closeMenu(); }}>
                 {t("dockmenu.addApp")}
+              </div>
+              <div className="menu-item" onClick={pickStackFolder}>
+                {t("dockmenu.addStack")}
               </div>
               {nectarOptionsMenu()}
             </>

@@ -121,6 +121,8 @@ fn main() {
             shelf_prune,
             shelf_drag_icon,
             shelf_text_file,
+            pick_folder,
+            list_folder_entries,
             pointer_over_notch,
             open_settings_window,
             on_demand_windows::on_demand_window_ready,
