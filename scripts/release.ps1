@@ -55,7 +55,7 @@ if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory $out | Out-Null
 
 if ($NotesFile) {
-    $notes = [string](Get-Content $NotesFile -Raw)
+    $notes = [string](Get-Content $NotesFile -Raw -Encoding UTF8)
 } else {
     $notes = (git log -1 --pretty=format:"%b" --no-merges | Out-String).Trim()
     if (-not $notes) { $notes = (git log -1 --pretty=format:"%s" --no-merges | Out-String).Trim() }
