@@ -1,13 +1,16 @@
-import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
+import { StrictMode, createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Effect, EffectState } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
-import { Check, ChevronLeft, ChevronRight, RefreshCw, Settings as SettingsIcon } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, RefreshCw, Settings as SettingsIcon } from "lucide-react";
 import { WindowControls } from "./components/WindowControls";
 import { initTheme } from "./theme";
 import { useCaldav, type CalEvent } from "./hooks/useCaldav";
+import { useLocalCalendar } from "./hooks/useLocalCalendar";
+import { LocalEventDialog } from "./components/LocalEventDialog";
+import { COLORS, HOLIDAY_COLOR, HOLIDAY_SOURCE, LOCAL_SOURCE, newEventId, type LocalEvent } from "./localCalendar";
 import { dateLocale, timeAgo, useT, weekdayNames } from "./i18n";
 import { daysSinceWeekStart, useWeekStart } from "./weekStart";
 import "./Calendar.css";
@@ -65,6 +68,11 @@ function readHidden(): Set<string> {
   }
 }
 
+// Which sidebar toggle hides an event: local and holidays have fixed keys, account events use their calendar name.
+const sourceKey = (e: CalEvent) => (e.source === "local" ? LOCAL_SOURCE : e.source === "holiday" ? HOLIDAY_SOURCE : e.calendar);
+
+const EditCtx = createContext<{ create: (day: Date) => void; pick: (e: CalEvent) => void }>({ create: () => {}, pick: () => {} });
+
 function colorStyle(e: CalEvent): React.CSSProperties {
   return { ["--c" as string]: e.color ?? "var(--nectar-text, #fff)" };
 }
@@ -79,6 +87,7 @@ function CalendarWindow() {
   const [hidden, setHidden] = useState<Set<string>>(readHidden);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<{ draft: LocalEvent; isNew: boolean } | null>(null);
   const hour12 = localStorage.getItem("nectar-time-format-24h") !== "true";
 
   useEffect(() => initTheme(), []);
@@ -110,7 +119,46 @@ function CalendarWindow() {
     });
   };
 
-  const events = useMemo(() => state.events.filter((e) => !hidden.has(e.calendar)), [state.events, hidden]);
+  // Wide enough for month/week/day around the anchor and the 30-day agenda from today.
+  const rangeFrom = Math.min(addDays(anchor, -40).getTime(), today.getTime());
+  const rangeTo = Math.max(addDays(anchor, 75).getTime(), addDays(today, 31).getTime());
+  const local = useLocalCalendar(rangeFrom, rangeTo);
+
+  const events = useMemo(
+    () => [...state.events, ...local.occurrences].filter((e) => !hidden.has(sourceKey(e))),
+    [state.events, local.occurrences, hidden],
+  );
+
+  const sources = [
+    { key: LOCAL_SOURCE, name: t("calendar.local"), color: COLORS[0] as string | null },
+    ...(local.holidays ? [{ key: HOLIDAY_SOURCE, name: t("calendar.holidays"), color: HOLIDAY_COLOR as string | null }] : []),
+    ...state.calendars.map((c) => ({ key: c.name, name: c.name, color: c.color })),
+  ];
+
+  const create = (day: Date) => {
+    const h = sameDay(day, new Date()) ? Math.min(new Date().getHours() + 1, 22) : 9;
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h).getTime();
+    setDialog({
+      isNew: true,
+      draft: { id: newEventId(), title: "", start, end: start + 3_600_000, allDay: false, color: COLORS[0], repeat: "none", reminderMinutes: null },
+    });
+  };
+
+  // Only local events are editable; account and holiday events stay read-only.
+  const pick = (e: CalEvent) => {
+    const found = e.source === "local" ? local.events.find((x) => x.id === e.localId) : undefined;
+    if (found) setDialog({ isNew: false, draft: found });
+  };
+
+  const saveEvent = (ev: LocalEvent) => {
+    local.save(dialog?.isNew ? [...local.events, ev] : local.events.map((x) => (x.id === ev.id ? ev : x)));
+    setDialog(null);
+  };
+
+  const deleteEvent = () => {
+    if (dialog) local.save(local.events.filter((x) => x.id !== dialog.draft.id));
+    setDialog(null);
+  };
 
   const sync = async () => {
     setSyncing(true);
@@ -162,6 +210,7 @@ function CalendarWindow() {
   const selectedEvents = eventsOn(events, anchor);
 
   return (
+    <EditCtx.Provider value={{ create, pick }}>
     <div className="cw">
       <div className="cw-titlebar" data-tauri-drag-region>
         <span className="cw-title-text" data-tauri-drag-region>
@@ -174,12 +223,12 @@ function CalendarWindow() {
         <aside className="cw-sidebar">
           <div className="cw-label">{t("calendar.calendars")}</div>
           <ul className="cw-sources">
-            {state.calendars.map((c) => {
-              const off = hidden.has(c.name);
+            {sources.map((c) => {
+              const off = hidden.has(c.key);
               const color = c.color ?? "var(--nectar-text, #fff)";
               return (
-                <li key={c.name}>
-                  <button onClick={() => toggleCalendar(c.name)} className={off ? "off" : ""}>
+                <li key={c.key}>
+                  <button onClick={() => toggleCalendar(c.key)} className={off ? "off" : ""}>
                     <span className="cw-check" style={{ borderColor: color, background: off ? "transparent" : color }}>
                       {!off && <Check size={10} strokeWidth={3} />}
                     </span>
@@ -188,7 +237,6 @@ function CalendarWindow() {
                 </li>
               );
             })}
-            {state.calendars.length === 0 && <li className="cw-muted">{t("calendar.noCalendars")}</li>}
           </ul>
 
           <div className="cw-sidebar-foot">
@@ -206,21 +254,14 @@ function CalendarWindow() {
         </aside>
 
         <main className="cw-main">
-          {!state.connected ? (
-            <div className="cw-empty-state">
-              <div className="cw-empty-title">{t("calendar.empty.title")}</div>
-              <div className="cw-empty-text">
-                {t("calendar.empty.text")}
-              </div>
-              <button className="cw-primary" onClick={manageSources}>
-                {t("calendar.empty.setup")}
-              </button>
-            </div>
-          ) : (
+          {(
             <>
               <div className="cw-toolbar">
                 <div className="cw-heading">{title}</div>
                 <div className="cw-controls">
+                  <button className="cw-primary small" onClick={() => create(anchor)}>
+                    <Plus size={13} strokeWidth={3} /> {t("calendar.newEvent")}
+                  </button>
                   <div className="cw-segment" role="tablist">
                     {VIEWS.map((v) => (
                       <button
@@ -265,7 +306,7 @@ function CalendarWindow() {
               )}
 
               <div className="cw-content">
-                {view === "month" && <MonthView anchor={anchor} today={today} events={events} time={time} onSelect={setAnchor} onOpen={openDay} />}
+                {view === "month" && <MonthView anchor={anchor} today={today} events={events} time={time} onSelect={setAnchor} />}
                 {view === "week" && <WeekView anchor={anchor} today={today} events={events} time={time} onOpen={openDay} />}
                 {view === "day" && <DayView day={anchor} events={events} time={time} />}
                 {view === "agenda" && <AgendaView today={today} events={events} time={time} onOpen={openDay} />}
@@ -274,7 +315,9 @@ function CalendarWindow() {
           )}
         </main>
       </div>
+      {dialog && <LocalEventDialog draft={dialog.draft} isNew={dialog.isNew} onSave={saveEvent} onDelete={deleteEvent} onClose={() => setDialog(null)} />}
     </div>
+    </EditCtx.Provider>
   );
 }
 
@@ -284,8 +327,16 @@ function DayNumber({ day, today, muted }: { day: Date; today: Date; muted?: bool
 
 function Chip({ event, time, stacked }: { event: CalEvent; time?: (ms: number) => string; stacked?: boolean }) {
   const t = useT();
+  const { pick } = useContext(EditCtx);
   return (
-    <div className={`cw-chip${stacked ? " stacked" : ""}`} style={colorStyle(event)}>
+    <div
+      className={`cw-chip${stacked ? " stacked" : ""}${event.source === "local" ? " editable" : ""}`}
+      style={colorStyle(event)}
+      onClick={(e) => {
+        e.stopPropagation();
+        pick(event);
+      }}
+    >
       {time && <i>{event.allDay ? t("calendar.allDay") : time(event.start)}</i>}
       <span>{event.title}</span>
     </div>
@@ -298,7 +349,6 @@ interface MonthProps {
   events: CalEvent[];
   time: (ms: number) => string;
   onSelect: (d: Date) => void;
-  onOpen: (d: Date) => void;
 }
 
 interface HoverCard {
@@ -309,8 +359,9 @@ interface HoverCard {
 
 const CARD_WIDTH = 236;
 
-function MonthView({ anchor, today, events, time, onSelect, onOpen }: MonthProps) {
+function MonthView({ anchor, today, events, time, onSelect }: MonthProps) {
   const t = useT();
+  const { create } = useContext(EditCtx);
   const weekStart = useWeekStart();
   const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const gridStart = addDays(first, -daysSinceWeekStart(first, weekStart));
@@ -385,8 +436,10 @@ function MonthView({ anchor, today, events, time, onSelect, onOpen }: MonthProps
             <div
               key={day.getTime()}
               className={classes.join(" ")}
-              onClick={() => onSelect(day)}
-              onDoubleClick={() => onOpen(day)}
+              onClick={() => {
+                onSelect(day);
+                create(day);
+              }}
               onMouseEnter={(e) => showCard(e, day, list.length)}
               onMouseLeave={() => setHover(null)}
             >
@@ -433,6 +486,7 @@ function MonthView({ anchor, today, events, time, onSelect, onOpen }: MonthProps
 
 function WeekView({ anchor, today, events, time, onOpen }: { anchor: Date; today: Date; events: CalEvent[]; time: (ms: number) => string; onOpen: (d: Date) => void }) {
   const t = useT();
+  const { create } = useContext(EditCtx);
   const weekStart = useWeekStart();
   const first = addDays(anchor, -daysSinceWeekStart(anchor, weekStart));
   return (
@@ -446,7 +500,7 @@ function WeekView({ anchor, today, events, time, onOpen }: { anchor: Date; today
               <em>{day.toLocaleDateString(dateLocale(), { weekday: "short" })}</em>
               <DayNumber day={day} today={today} />
             </button>
-            <div className="cw-week-events">
+            <div className="cw-week-events" onClick={() => create(day)}>
               {list.map((e, k) => (
                 <Chip key={`${e.uid}-${e.start}-${k}`} event={e} time={time} stacked />
               ))}
@@ -461,15 +515,16 @@ function WeekView({ anchor, today, events, time, onOpen }: { anchor: Date; today
 
 function DayView({ day, events, time }: { day: Date; events: CalEvent[]; time: (ms: number) => string }) {
   const t = useT();
+  const { create, pick } = useContext(EditCtx);
   const list = eventsOn(events, day);
   const [nowMs] = useState(() => Date.now());
-  if (list.length === 0) return <div className="cw-empty-day">{t("calendar.nothingPlanned")}</div>;
+  if (list.length === 0) return <div className="cw-empty-day" onClick={() => create(day)}>{t("calendar.nothingPlanned")}</div>;
   return (
-    <div className="cw-list">
+    <div className="cw-list" onClick={(e) => e.target === e.currentTarget && create(day)}>
       {list.map((e, i) => {
         const live = !e.allDay && e.start <= nowMs && e.end > nowMs;
         return (
-          <div key={`${e.uid}-${e.start}-${i}`} className="cw-day-event" style={colorStyle(e)}>
+          <div key={`${e.uid}-${e.start}-${i}`} className={`cw-day-event${e.source === "local" ? " editable" : ""}`} style={colorStyle(e)} onClick={() => pick(e)}>
             <span className="cw-day-time">
               {e.allDay ? (
                 <b>{t("calendar.allDay")}</b>

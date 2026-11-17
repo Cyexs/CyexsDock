@@ -813,3 +813,144 @@ button {
   font-size: 10.5px;
   color: var(--cw-muted);
 }
+/* Local event dialog */
+.cw-chip.editable,
+.cw-day-event.editable {
+  cursor: pointer;
+}
+
+.cw-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.cw-dialog {
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  text-align: left;
+  border: 1px solid var(--cw-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--cw-inverse) 92%, var(--cw-text));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  user-select: text;
+}
+
+.cw-dialog-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cw-input {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--cw-line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--cw-text);
+  font: inherit;
+  font-size: 12px;
+  color-scheme: dark;
+}
+
+.light-mode .cw-input {
+  color-scheme: light;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.cw-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--cw-text) 45%, transparent);
+}
+
+.cw-notes {
+  resize: none;
+}
+
+.cw-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.cw-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--cw-muted);
+}
+
+.cw-field-row > span:first-child {
+  width: 64px;
+  flex: none;
+}
+
+.cw-field-row .cw-input {
+  flex: 1;
+}
+
+.cw-swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.cw-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.cw-swatch.on {
+  border-color: var(--cw-text);
+}
+
+.cw-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cw-spacer {
+  flex: 1;
+}
+
+.cw-secondary,
+.cw-danger {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cw-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cw-danger {
+  color: #ff6b6b;
+}
+
+.cw-secondary:hover,
+.cw-danger:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.cw-toolbar .cw-primary.small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

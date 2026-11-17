@@ -11,6 +11,9 @@ export interface CalEvent {
   allDay: boolean;
   start: number;
   end: number;
+  /** Set on local events and holidays (not synced from an account). */
+  source?: "local" | "holiday";
+  localId?: string;
 }
 
 export interface AccountView {

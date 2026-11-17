@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { CaldavState, CalEvent } from "../hooks/useCaldav";
+import { useLocalCalendar } from "../hooks/useLocalCalendar";
 import { dateLocale, useT, weekdayNames } from "../i18n";
 import { daysSinceWeekStart, useWeekStart } from "../weekStart";
 
@@ -59,10 +60,15 @@ interface Props {
 export function NotchCalendar({ caldav, hour12 }: Props) {
   const t = useT();
   const weekStart = useWeekStart();
-  const connected = caldav.connected;
   const today = startOfDay(new Date());
   const [view, setViewState] = useState<View>(readView);
   const [anchor, setAnchor] = useState<Date>(today);
+  // Local events and holidays always show; synced account events are added when connected.
+  const local = useLocalCalendar(
+    Math.min(addDays(anchor, -40).getTime(), today.getTime()),
+    Math.max(addDays(anchor, 75).getTime(), addDays(today, AGENDA_DAYS + 1).getTime()),
+  );
+  const events = useMemo(() => [...caldav.events, ...local.occurrences], [caldav.events, local.occurrences]);
 
   const time = (ms: number) => new Date(ms).toLocaleTimeString(dateLocale(), { hour: "numeric", minute: "2-digit", hour12 });
 
@@ -73,11 +79,10 @@ export function NotchCalendar({ caldav, hour12 }: Props) {
   };
 
   const shift = (dir: number) => {
-    const current = connected ? view : "month";
-    if (current === "month") {
+    if (view === "month") {
       const next = new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1);
       setAnchor(next.getFullYear() === today.getFullYear() && next.getMonth() === today.getMonth() ? today : next);
-    } else if (current === "week") {
+    } else if (view === "week") {
       setAnchor(addDays(anchor, 7 * dir));
     } else {
       setAnchor(addDays(anchor, dir));
@@ -89,7 +94,7 @@ export function NotchCalendar({ caldav, hour12 }: Props) {
     setView("day");
   };
 
-  const activeView: View = connected ? view : "month";
+  const activeView = view;
 
   let title: string;
   if (activeView === "week") {
@@ -108,11 +113,11 @@ export function NotchCalendar({ caldav, hour12 }: Props) {
   const showToday = activeView !== "agenda" && !sameDay(anchor, today);
 
   return (
-    <div className={`calendar-container${connected ? " with-agenda" : ""}`}>
+    <div className="calendar-container with-agenda">
       <div className="calendar-header">
         <span className="month-year">{title}</span>
         <span className="cal-nav-group">
-          {connected && (
+          {(
             <button className="cal-open" onClick={() => invoke("open_calendar_window").catch(() => {})} title={t("calendar.openFull")} aria-label={t("calendar.openFull")}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 3h6v6" />
@@ -139,7 +144,7 @@ export function NotchCalendar({ caldav, hour12 }: Props) {
         </span>
       </div>
 
-      {connected && (
+      {(
         <div className="cal-views" role="tablist">
           {VIEWS.map((v) => (
             <button
@@ -157,19 +162,13 @@ export function NotchCalendar({ caldav, hour12 }: Props) {
 
       {activeView === "month" && (
         <>
-          <MonthGrid anchor={anchor} today={today} events={caldav.events} connected={connected} onPick={setAnchor} />
-          {connected && (
-            <SelectedDay day={anchor} events={caldav.events} time={time} onOpen={() => openDay(anchor)} />
-          )}
+          <MonthGrid anchor={anchor} today={today} events={events} onPick={setAnchor} />
+          <SelectedDay day={anchor} events={events} time={time} onOpen={() => openDay(anchor)} />
         </>
       )}
-      {connected && activeView === "week" && (
-        <WeekList anchor={anchor} today={today} events={caldav.events} time={time} onOpen={openDay} />
-      )}
-      {connected && activeView === "day" && <DayList day={anchor} events={caldav.events} time={time} />}
-      {connected && activeView === "agenda" && (
-        <AgendaList today={today} events={caldav.events} time={time} onOpen={openDay} />
-      )}
+      {activeView === "week" && <WeekList anchor={anchor} today={today} events={events} time={time} onOpen={openDay} />}
+      {activeView === "day" && <DayList day={anchor} events={events} time={time} />}
+      {activeView === "agenda" && <AgendaList today={today} events={events} time={time} onOpen={openDay} />}
     </div>
   );
 }
@@ -178,11 +177,10 @@ interface MonthProps {
   anchor: Date;
   today: Date;
   events: CalEvent[];
-  connected: boolean;
   onPick: (day: Date) => void;
 }
 
-function MonthGrid({ anchor, today, events, connected, onPick }: MonthProps) {
+function MonthGrid({ anchor, today, events, onPick }: MonthProps) {
   const weekStart = useWeekStart();
   const year = anchor.getFullYear();
   const month = anchor.getMonth();
@@ -190,9 +188,8 @@ function MonthGrid({ anchor, today, events, connected, onPick }: MonthProps) {
   const startDay = daysSinceWeekStart(new Date(year, month, 1), weekStart);
 
   const byDay = useMemo(() => {
-    if (!connected) return [];
     return Array.from({ length: totalDays }, (_, i) => eventsOn(events, new Date(year, month, i + 1)));
-  }, [connected, events, year, month, totalDays]);
+  }, [events, year, month, totalDays]);
 
   const cells = [];
   for (let i = 0; i < startDay; i++) {

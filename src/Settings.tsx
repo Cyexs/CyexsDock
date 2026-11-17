@@ -203,6 +203,8 @@ function SettingsApp() {
               toggleCalendar={settings.toggleCalendar}
               prayerPanel={settings.prayerPanel}
               togglePrayerPanel={settings.togglePrayerPanel}
+              holidaysEnabled={settings.holidaysEnabled}
+              toggleHolidays={settings.toggleHolidays}
               timerEnabled={settings.timerEnabled}
               toggleTimerEnabled={settings.toggleTimerEnabled}
               timerSoundEnabled={settings.timerSoundEnabled}

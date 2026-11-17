@@ -35,6 +35,7 @@ import {
   Globe,
   Volume2,
   MoonStar,
+  Flag,
 } from "lucide-react";
 import { DEFAULT_PANEL_ORDER, type CcLayout, type PanelId } from "../panelOrder";
 import { ControlCenterConfig } from "../components/ControlCenterConfig";
@@ -74,6 +75,8 @@ interface NotchTabProps {
   toggleCalendar: () => void;
   prayerPanel: boolean;
   togglePrayerPanel: () => void;
+  holidaysEnabled: boolean;
+  toggleHolidays: () => void;
   timerEnabled: boolean;
   toggleTimerEnabled: () => void;
   timerSoundEnabled: boolean;
@@ -155,6 +158,8 @@ export function NotchTab({
   toggleCalendar,
   prayerPanel,
   togglePrayerPanel,
+  holidaysEnabled,
+  toggleHolidays,
   timerEnabled,
   toggleTimerEnabled,
   timerSoundEnabled,
@@ -309,6 +314,15 @@ export function NotchTab({
           <SettingRow icon={MoonStar} label={t("notch.prayerPanel")} desc={t("notch.prayerPanel.desc")}>
             <label className="toggle-switch">
               <input type="checkbox" checked={prayerPanel} onChange={togglePrayerPanel} />
+              <span className="slider"></span>
+            </label>
+          </SettingRow>
+        )}
+
+        {calendarEnabled && (
+          <SettingRow icon={Flag} label={t("notch.holidays")} desc={t("notch.holidays.desc")}>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={holidaysEnabled} onChange={toggleHolidays} />
               <span className="slider"></span>
             </label>
           </SettingRow>

@@ -18,6 +18,8 @@ import { useSettingsSync } from "./hooks/useSettingsSync";
 import { useTrailingThrottle } from "./hooks/useTrailingThrottle";
 import { useCaldav } from "./hooks/useCaldav";
 import { NotchCalendar } from "./components/NotchCalendar";
+import { useLocalEvents } from "./hooks/useLocalCalendar";
+import { dueReminders, type DueReminder } from "./localCalendar";
 import { NotchClock, StopwatchReadout } from "./components/NotchClock";
 import { MediaSourceButton, type MediaSession } from "./components/MediaSourceButton";
 import { ConnectionsView } from "./components/ConnectionsView";
@@ -820,6 +822,36 @@ function App() {
     setNotif({ app: prayer.city || t("widgets.prayer"), title: t("prayer.arrived", { name: t(`prayer.${prev.name}`) }), body: clock, durationMs: 10_000 });
     triggerEventPeek(10_000);
   }, [nextPrayer?.name]);
+
+  // Local calendar reminders: every 30 s, show a card for occurrences whose reminder time passed in the last 2 min. Main notch window only.
+  const localCal = useLocalEvents();
+  const localEventsRef = useRef(localCal.events);
+  localEventsRef.current = localCal.events;
+  const notifyReminder = (r: DueReminder) => {
+    const body = r.minutes === 0 ? t("calendar.now") : new Date(r.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: !timeFormat24h });
+    setNotif({ app: t("calendar.title"), title: r.title, body, durationMs: 10_000 });
+    triggerEventPeek(10_000);
+  };
+  const notifyReminderRef = useRef(notifyReminder);
+  notifyReminderRef.current = notifyReminder;
+  useEffect(() => {
+    if (windowLabel !== 'main') return;
+    const FIRED_KEY = "cyexs-calendar-fired";
+    const check = () => {
+      const now = Date.now();
+      let fired: Record<string, number> = {};
+      try { fired = JSON.parse(localStorage.getItem(FIRED_KEY) ?? "{}") || {}; } catch { fired = {}; }
+      const next = dueReminders(localEventsRef.current, now).find((r) => !fired[r.key]);
+      if (!next) return;
+      fired[next.key] = now; // one card per tick; any others still due show on the next tick
+      for (const k of Object.keys(fired)) if (now - fired[k] > 3 * 86_400_000) delete fired[k];
+      try { localStorage.setItem(FIRED_KEY, JSON.stringify(fired)); } catch { /* storage unavailable */ }
+      notifyReminderRef.current(next);
+    };
+    check();
+    const id = setInterval(check, 30_000);
+    return () => clearInterval(id);
+  }, [windowLabel]);
 
   const refreshNotchMode = () => {
     invoke<string>('get_notch_mode_for_window').then(setNotchMode).catch(() => {});
@@ -2130,7 +2162,7 @@ function App() {
       return Math.min(300, base + Math.max(0, lines - 2) * 16);
     }
     if (nectarMode === 'shelf') return shelf.items.length === 0 ? 96 : 176;
-    if (nectarMode === 'calendar') return settingsCalendarEnabled ? (caldav.connected ? 350 : 310) : 262;
+    if (nectarMode === 'calendar') return settingsCalendarEnabled ? 350 : 262;
     if (nectarMode === 'command-center') {
       if (!isHovered) return 36;
       const tileRows = Math.ceil(ccResolved.tiles.length / 2);

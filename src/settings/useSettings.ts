@@ -56,6 +56,7 @@ export function useSettings() {
   const [weatherEnabled, setWeatherEnabled] = useState(true);
   const [calendarEnabled, setCalendarEnabled] = useState(true);
   const [prayerPanel, setPrayerPanel] = useState(true);
+  const [holidaysEnabled, setHolidaysEnabled] = useState(true);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [timerSoundEnabled, setTimerSoundEnabled] = useState(true);
   const [notchTimerProgress, setNotchTimerProgress] = useState(
@@ -272,6 +273,7 @@ export function useSettings() {
       apply(getVal("nectar-weather-enabled"), setWeatherEnabled, readBool);
       apply(getVal("nectar-calendar-enabled"), setCalendarEnabled, readBool);
       apply(getVal("cyexs-prayer-panel"), setPrayerPanel, readBool);
+      apply(getVal("cyexs-holidays-enabled"), setHolidaysEnabled, readBool);
       apply(getVal("nectar-timer-enabled") ?? getVal("nectar-calendar-enabled"), setTimerEnabled, readBool);
       apply(getVal("nectar-timer-sound-enabled"), setTimerSoundEnabled, readBool);
       apply(getVal("nectar-notch-timer-progress"), setNotchTimerProgress, readBool);
@@ -451,6 +453,7 @@ export function useSettings() {
     "nectar-weather-enabled": setWeatherEnabled,
     "nectar-calendar-enabled": setCalendarEnabled,
     "cyexs-prayer-panel": setPrayerPanel,
+    "cyexs-holidays-enabled": setHolidaysEnabled,
     "nectar-timer-enabled": setTimerEnabled,
     "nectar-timer-sound-enabled": setTimerSoundEnabled,
     "nectar-notch-timer-progress": setNotchTimerProgress,
@@ -619,6 +622,12 @@ export function useSettings() {
     const next = !prayerPanel;
     setPrayerPanel(next);
     saveSetting("cyexs-prayer-panel", String(next));
+  };
+
+  const toggleHolidays = () => {
+    const next = !holidaysEnabled;
+    setHolidaysEnabled(next);
+    saveSetting("cyexs-holidays-enabled", String(next));
   };
 
   const toggleCalendar = () => {
@@ -1294,6 +1303,8 @@ export function useSettings() {
     toggleCalendar,
     prayerPanel,
     togglePrayerPanel,
+    holidaysEnabled,
+    toggleHolidays,
     timerEnabled,
     toggleTimerEnabled,
     timerSoundEnabled,
