@@ -1414,6 +1414,7 @@ const Dock = memo(function Dock() {
   const stackDragOutRef = useRef(false);
   const setStackDragOut = (active: boolean) => {
     stackDragOutRef.current = active;
+    invoke('set_own_file_drag', { active }).catch(() => {});
     if (active) invoke('set_menu_open', { open: false, rect: null }).catch(() => {});
   };
 

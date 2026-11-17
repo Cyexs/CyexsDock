@@ -2772,6 +2772,10 @@ fn hit_test_extra_dock_windows(app_handle: &AppHandle, cursor: windows::Win32::F
 fn left_button_held() -> bool {
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
     static DOWN_SINCE_MS: AtomicI64 = AtomicI64::new(0);
+    // A file dragged out of a dock stack must not open the notch as a drop zone.
+    if crate::state::OWN_FILE_DRAG.load(Ordering::Relaxed) {
+        return false;
+    }
     let down = unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 };
     if !down {
         DOWN_SINCE_MS.store(0, Ordering::Relaxed);

@@ -73,6 +73,11 @@ pub async fn set_dock_dragging(dragging: bool) {
 }
 
 #[tauri::command]
+pub async fn set_own_file_drag(active: bool) {
+    crate::state::OWN_FILE_DRAG.store(active, Ordering::Relaxed);
+}
+
+#[tauri::command]
 pub async fn update_dock_rect(window: Window, rect: IntRect) {
     if let Ok(mut m) = crate::state::dock_rects().lock() {
         m.insert(window.label().to_string(), rect);

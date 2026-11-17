@@ -173,6 +173,7 @@ fn main() {
             get_media_info,
             set_notch_hidden,
             set_dock_dragging,
+            set_own_file_drag,
             get_active_windows,
             startup::get_autostart,
             startup::set_autostart,

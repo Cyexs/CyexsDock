@@ -128,6 +128,15 @@ impl IDropTarget_Impl for ShelfDropTarget_Impl {
         pt: &POINTL,
         effect: *mut DROPEFFECT,
     ) -> windows::core::Result<()> {
+        // Our own stack drag: let it pass through to the desktop or other apps.
+        if crate::state::OWN_FILE_DRAG.load(std::sync::atomic::Ordering::Relaxed) {
+            unsafe {
+                *self.enter_valid.get() = false;
+                *self.cursor_effect.get() = DROPEFFECT_NONE;
+                *effect = DROPEFFECT_NONE;
+            }
+            return Ok(());
+        }
         if self.dock {
             let has_files = pdata
                 .as_ref()

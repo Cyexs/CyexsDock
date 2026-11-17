@@ -135,6 +135,8 @@ pub static MONITOR_SYNC_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 pub static MENU_IS_OPEN: AtomicBool = AtomicBool::new(false);
 pub static MENU_RECT: Mutex<Option<IntRect>> = Mutex::new(None);
 pub static DOCK_IS_DRAGGING: AtomicBool = AtomicBool::new(false);
+/// A file from a dock stack is being dragged out: our own notch/dock drop targets must not take it.
+pub static OWN_FILE_DRAG: AtomicBool = AtomicBool::new(false);
 pub static ICON_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
 
 pub static INSTALLED_APPS_CACHE: OnceLock<Mutex<Vec<AppInfo>>> = OnceLock::new();
