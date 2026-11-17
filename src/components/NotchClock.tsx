@@ -49,6 +49,8 @@ interface Props {
   onStartTimer: (seconds: number) => void;
   onToggleTimer: () => void;
   onResetTimer: () => void;
+  focusMode: boolean;
+  onToggleFocus: () => void;
   stopwatch: Stopwatch;
 }
 
@@ -62,6 +64,8 @@ export function NotchClock({
   onStartTimer,
   onToggleTimer,
   onResetTimer,
+  focusMode,
+  onToggleFocus,
   stopwatch,
 }: Props) {
   const t = useT();
@@ -129,6 +133,14 @@ export function NotchClock({
               </button>
               <button onClick={onResetTimer} className="timer-btn secondary">
                 {t("clock.reset")}
+              </button>
+              <button
+                onClick={onToggleFocus}
+                className={`timer-btn ${focusMode ? "primary" : "secondary"}`}
+                aria-pressed={focusMode}
+                title={t("clock.focus.hint")}
+              >
+                {t("clock.focus")}
               </button>
             </div>
 

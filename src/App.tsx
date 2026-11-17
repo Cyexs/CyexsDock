@@ -409,8 +409,12 @@ function App() {
   type NotchNotif = { app: string; title: string; body: string; icon?: string | null; aumid?: string; count?: number };
   const [notif, setNotif] = useState<NotchNotif | null>(null);
   const notifHoveredRef = useRef(false);
+  // Focus mode: while the timer runs, toasts are counted instead of shown (they still land in the dock's list).
+  const focusActiveRef = useRef(false);
+  const focusMissedRef = useRef(0);
   useEffect(() => {
     const un = listen<NotchNotif>("notch-notification", async (e) => {
+      if (focusActiveRef.current) { focusMissedRef.current += 1; return; }
       // Apps muted from the dock's notification list never pop the notch (they still land in the list).
       const saved = await invoke<Record<string, unknown>>("load_settings").catch(() => ({} as Record<string, unknown>));
       const muted = saved["cyexs-muted-notif-apps"];
@@ -1293,6 +1297,24 @@ function App() {
   const showTimerProgressBar = settingsTimerProgressEnabled && settingsTimerEnabled && (
     (timerTotalSeconds > 0 && (isTimerRunning || timerSeconds > 0)) || isTimerFinished
   );
+
+  // shortcut: focus state is per notch window, like the timer; share it if timers ever sync across monitors.
+  const [focusMode, setFocusMode] = useState(() => localStorage.getItem("cyexs-focus-mode") === "true");
+  const toggleFocusMode = () => setFocusMode((on) => {
+    localStorage.setItem("cyexs-focus-mode", String(!on));
+    return !on;
+  });
+  const focusActive = focusMode && isTimerRunning;
+  useEffect(() => {
+    focusActiveRef.current = focusActive;
+    if (focusActive) return;
+    const missed = focusMissedRef.current;
+    focusMissedRef.current = 0;
+    if (missed > 0) {
+      setNotif({ app: "CyexsDock", title: t("focus.ended"), body: t("focus.missed", { count: missed }) });
+      triggerEventPeek(8000);
+    }
+  }, [focusActive]);
 
   const stopwatch = useStopwatch();
 
@@ -2963,6 +2985,8 @@ function App() {
                         onStartTimer={startTimerSeconds}
                         onToggleTimer={toggleTimer}
                         onResetTimer={resetTimer}
+                        focusMode={focusMode}
+                        onToggleFocus={toggleFocusMode}
                         stopwatch={stopwatch}
                       />
                     )}
