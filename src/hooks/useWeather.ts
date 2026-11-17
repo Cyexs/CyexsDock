@@ -148,7 +148,7 @@ function lastIpLocation(): ResolvedLocation | null {
   }
 }
 
-async function resolveLocation(): Promise<ResolvedLocation | null> {
+export async function resolveLocation(): Promise<ResolvedLocation | null> {
   // 1. Check saved coordinates from settings or localStorage
   try {
     const settings = (await invoke("load_settings").catch(() => ({}))) as Record<

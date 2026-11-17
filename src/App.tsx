@@ -11,6 +11,8 @@ import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, VolumeLowIcon, Volu
 import { CompactMediaPlayer } from "./CompactMediaPlayer";
 import { artTheme, FALLBACK_THEME, type ArtTheme } from "./music/palette";
 import { useWeather } from "./hooks/useWeather";
+import { useMarkets, formatTry, type Quote } from "./hooks/useMarkets";
+import { usePrayerTimes } from "./hooks/usePrayerTimes";
 import { useSettingsSync } from "./hooks/useSettingsSync";
 import { useTrailingThrottle } from "./hooks/useTrailingThrottle";
 import { useCaldav } from "./hooks/useCaldav";
@@ -55,6 +57,10 @@ import {
   Bell,
   RotateCw,
   BatteryCharging,
+  DollarSign,
+  Euro,
+  Coins,
+  MoonStar,
 } from "lucide-react";
 import { setVisibleInterval } from "./hooks/visibleInterval";
 
@@ -794,6 +800,9 @@ function App() {
 
   // Weather hook
   const { temperature, weatherCondition, weatherIcon: WeatherIcon, cityName, tempUnit } = useWeather(settingsWeatherEnabled);
+  const placedWidgets = [...statusWidgets.left, ...statusWidgets.right];
+  const markets = useMarkets(placedWidgets.some((id) => id === "usd" || id === "eur" || id === "gold"));
+  const nextPrayer = usePrayerTimes(placedWidgets.includes("prayer"));
 
   const refreshNotchMode = () => {
     invoke<string>('get_notch_mode_for_window').then(setNotchMode).catch(() => {});
@@ -1917,6 +1926,32 @@ function App() {
             <span className="label">{batteryLevel}%</span>
           </div>
         );
+      case "usd":
+      case "eur":
+      case "gold": {
+        const quote: Quote | null = markets[id];
+        if (!quote) return null;
+        const Icon = id === "usd" ? DollarSign : id === "eur" ? Euro : Coins;
+        const change = `${quote.change > 0 ? "+" : ""}${quote.change.toLocaleString("tr-TR")}%`;
+        return (
+          <div className="passive-feature" key={id} {...tip(t(`widgets.${id}.tip`, { change }))}>
+            <Icon size={12} strokeWidth={2} />
+            <span className="label">{formatTry(quote.price)}₺</span>
+          </div>
+        );
+      }
+      case "prayer": {
+        if (!nextPrayer) return null;
+        const minutes = Math.max(0, Math.round((nextPrayer.at.getTime() - Date.now()) / 60000));
+        const left = minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}` : `${minutes} dk`;
+        const clock = nextPrayer.at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: !timeFormat24h });
+        return (
+          <div className="passive-feature" key="prayer" {...tip(t("widgets.prayer.tip", { name: t(`prayer.${nextPrayer.name}`), time: clock, left }))}>
+            <MoonStar size={12} strokeWidth={2} />
+            <span className="label">{t(`prayer.${nextPrayer.name}`)} {clock}</span>
+          </div>
+        );
+      }
       case "cpu":
         return (
           <div className="passive-feature" key="cpu" {...tip(t("widgets.cpu.tip"))}>

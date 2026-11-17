@@ -29,6 +29,10 @@ import {
   ArrowLeftRight,
   ChevronUp,
   ChevronDown,
+  DollarSign,
+  Euro,
+  Coins,
+  MoonStar,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useT } from "../i18n";
@@ -51,6 +55,10 @@ const WIDGET_DEFS: WidgetDef[] = [
   { id: "ram", icon: MemoryStick, color: "#a78bfa" },
   { id: "disk", icon: HardDrive, color: "#38bdf8" },
   { id: "net", icon: ArrowUpDown, color: "#2dd4bf" },
+  { id: "usd", icon: DollarSign, color: "#22c55e" },
+  { id: "eur", icon: Euro, color: "#3b82f6" },
+  { id: "gold", icon: Coins, color: "#eab308" },
+  { id: "prayer", icon: MoonStar, color: "#c084fc" },
 ];
 
 const DEFAULT_CONFIG: WidgetConfig = {
