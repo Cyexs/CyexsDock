@@ -22,6 +22,11 @@ $root = Resolve-Path "$PSScriptRoot/.."
 Set-Location $root
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 1.3.1" }
+# Key and password live outside the repo. PowerShell can't hold an empty env var, so the key must have a password.
+$keyDir = Join-Path $env:USERPROFILE ".tauri"
+if (-not $env:TAURI_SIGNING_PRIVATE_KEY -and (Test-Path "$keyDir/cyexsdock.key")) { $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content "$keyDir/cyexsdock.key" -Raw).Trim() }
+if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -and (Test-Path "$keyDir/cyexsdock.password")) { $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = (Get-Content "$keyDir/cyexsdock.password" -Raw).Trim() }
+if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set, so signing would hang on a password prompt." }
 if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw "TAURI_SIGNING_PRIVATE_KEY is not set, so the update can't be signed." }
 
 $versionFiles = @{
