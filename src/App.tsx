@@ -849,10 +849,12 @@ function App() {
       if (windowLabel === 'main') {
         const firstRun = localStorage.getItem("nectar-first-run") === null;
         if (firstRun) {
-          invoke<boolean>("get_autostart").then(enabled => {
-            if (!enabled) invoke("set_autostart", { enabled: true }).catch(() => { });
-          }).catch(() => { });
-          localStorage.setItem("nectar-first-run", "done");
+          // Mark first run done only once autostart is really on: dev builds (run from `target`) skip
+          // set_autostart, and marking there used to leave the installed copy without autostart.
+          invoke<boolean>("get_autostart")
+            .then(enabled => enabled || invoke("set_autostart", { enabled: true }).then(() => invoke<boolean>("get_autostart")))
+            .then(enabled => { if (enabled) localStorage.setItem("nectar-first-run", "done"); })
+            .catch(() => { });
         }
         const rawDockMode = getVal("nectar-dock-mode", "smart") as string;
         const dockMode = rawDockMode === "auto-hide" ? "smart" : rawDockMode;
