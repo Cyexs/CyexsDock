@@ -19,7 +19,7 @@ use crate::uninstall_registry::{
 };
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-const TITLE: &str = "Cyexs";
+const TITLE: &str = "CyexsDock";
 
 pub fn requested() -> bool {
     let by_arg = std::env::args().skip(1).any(|a| a == "--uninstall");
@@ -212,7 +212,7 @@ pub fn run() {
 
     if all_users && !is_elevated() {
         if !relaunch_elevated(&exe) {
-            message("Cyexs was installed for all users, so uninstalling it needs administrator permission.", MB_OK | MB_ICONINFORMATION);
+            message("CyexsDock was installed for all users, so uninstalling it needs administrator permission.", MB_OK | MB_ICONINFORMATION);
         }
         return;
     }
@@ -253,14 +253,14 @@ pub fn run() {
 
     if spawned.is_err() {
         let text = if dedicated {
-            format!("Cyexs was unregistered, but its folder couldn't be removed automatically. You can delete it yourself:\n\n{}", install_dir.display())
+            format!("CyexsDock was unregistered, but its folder couldn't be removed automatically. You can delete it yourself:\n\n{}", install_dir.display())
         } else {
-            format!("Cyexs was unregistered, but its files couldn't be removed automatically. You can delete {} yourself from:\n\n{}", APP_FILES.join(", "), install_dir.display())
+            format!("CyexsDock was unregistered, but its files couldn't be removed automatically. You can delete {} yourself from:\n\n{}", APP_FILES.join(", "), install_dir.display())
         };
         message(&text, MB_OK | MB_ICONINFORMATION);
         return;
     }
-    message("Cyexs has been uninstalled.", MB_OK | MB_ICONINFORMATION);
+    message("CyexsDock has been uninstalled.", MB_OK | MB_ICONINFORMATION);
 }
 
 #[cfg(test)]

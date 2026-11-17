@@ -3301,7 +3301,7 @@ pub unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> B
             }
 
             // Filter out system containers and background stuff
-            if title == "Program Manager" || title == "nectar" || title == "Cyexs Dock" {
+            if title == "Program Manager" || title == "nectar" || title == "CyexsDock" || title == "Cyexs Dock" {
                 return true.into();
             }
 

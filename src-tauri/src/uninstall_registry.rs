@@ -84,7 +84,7 @@ fn create_shortcut(lnk_path: &Path, target: &Path) -> windows::core::Result<()> 
 
         shell_link.SetIconLocation(PCWSTR(target_w.as_ptr()), 0)?;
 
-        let desc_w = wide("Cyexs");
+        let desc_w = wide("CyexsDock");
         shell_link.SetDescription(PCWSTR(desc_w.as_ptr()))?;
 
         let persist_file: IPersistFile = shell_link.cast()?;
@@ -200,7 +200,7 @@ pub fn heal_uninstall_registration() {
             return;
         }
 
-        let _ = set_string(hkey, "DisplayName", "Cyexs");
+        let _ = set_string(hkey, "DisplayName", "CyexsDock");
         let _ = set_string(hkey, "DisplayIcon", &icon_str);
         let _ = set_string(hkey, "DisplayVersion", env!("CARGO_PKG_VERSION"));
         let _ = set_string(hkey, "Publisher", "kua8");
