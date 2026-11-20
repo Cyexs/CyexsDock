@@ -50,7 +50,10 @@ pub fn capture_window_bgra(hwnd: HWND) -> Option<(Vec<u8>, u32, u32)> {
         let pool = Direct3D11CaptureFramePool::CreateFreeThreaded(&d3d, DirectXPixelFormat::B8G8R8A8UIntNormalized, 1, size).ok()?;
         let session = pool.CreateCaptureSession(&item).ok()?;
         let _ = session.SetIsCursorCaptureEnabled(false);
-        let _ = session.SetIsBorderRequired(false);
+        // Windows 10 cannot hide the yellow capture border, so let the PrintWindow path take over there.
+        if session.SetIsBorderRequired(false).is_err() {
+            return None;
+        }
         session.StartCapture().ok()?;
 
         let mut frame = None;

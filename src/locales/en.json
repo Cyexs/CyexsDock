@@ -583,6 +583,7 @@
   "prayer.arrived": "Time for {name}",
   "media.art": "Art",
   "media.audioOutput": "Audio Output",
+  "media.switchLayout": "Switch player layout",
   "battery.low": "Low Battery",
   "battery.onBatteryTitle": "On Battery",
   "cc.ethernet": "Ethernet",

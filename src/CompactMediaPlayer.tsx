@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Visualizer } from './App';
 import { useT } from './i18n';
 import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, MusicNoteIcon, SpeakerIcon, AudioOutputIcon, VolumeLowIcon, VolumeHighIcon } from './icons';
-import { ChevronRight } from 'lucide-react';
+import { ArrowLeftRight, ChevronRight } from 'lucide-react';
 import { MediaSourceButton, type MediaSession } from "./components/MediaSourceButton";
 import { setVisibleInterval } from "./hooks/visibleInterval";
 
@@ -103,36 +103,8 @@ function formatRemaining(elapsed: number, duration: number): string {
   return `-${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function CompactMediaPlayer({
-  mediaInfo,
-  albumArtUrl,
-  albumArtKey,
-  isPlaying,
-  volume,
-  volumeExpanded,
-  onVolumeExpandedChange,
-  onTogglePlayPause,
-  onVolumeChange,
-  prevFront,
-  prevBack,
-  nextFront,
-  nextBack,
-  onAnimatePrev,
-  onAnimateNext,
-  onLayoutChange,
-  sessions,
-  onNextPanel,
-}: CompactMediaPlayerProps) {
-  const t = useT();
-
-  const scrollVolume = (e: React.WheelEvent) => {
-    if (localStorage.getItem("nectar-notch-scroll-volume") !== "true") return;
-    e.stopPropagation();
-    const change = e.deltaY < 0 ? 0.02 : -0.02;
-    onVolumeChange(Math.min(1, Math.max(0, Math.round((volume + change) * 100) / 100)));
-  };
-  const seekRef = useRef<HTMLInputElement>(null);
-
+// Live track position: extrapolates between backend updates and handles seeking.
+function useMediaPosition(mediaInfo: MediaInfo, isPlaying: boolean) {
   const positionMs = mediaInfo.position_ms ?? 0;
   const durationMs = mediaInfo.duration_ms ?? 0;
   const seekEnabled = mediaInfo.seek_enabled ?? false;
@@ -171,7 +143,6 @@ export function CompactMediaPlayer({
     return () => clearInterval(interval);
   }, [isPlaying, durationMs]);
 
-  // Seek handlers
   const handleSeekStart = useCallback(() => {
     isSeekingRef.current = true;
   }, []);
@@ -190,12 +161,80 @@ export function CompactMediaPlayer({
   }, [displayPosition]);
 
   const progressPercent = durationMs > 0 ? (displayPosition / durationMs) * 100 : 0;
+  return { displayPosition, durationMs, seekEnabled, progressPercent, handleSeekStart, handleSeekChange, handleSeekEnd };
+}
+
+/** Track progress bar with a thumb and the track length under its end (classic notch layout). */
+export function NotchProgress({ mediaInfo, isPlaying }: { mediaInfo: MediaInfo; isPlaying: boolean }) {
+  const { displayPosition, durationMs, seekEnabled, progressPercent, handleSeekStart, handleSeekChange, handleSeekEnd } =
+    useMediaPosition(mediaInfo, isPlaying);
+  if (durationMs <= 0) return null;
+  return (
+    <div className="np-progress">
+      <div className="np-bar">
+        <div className="np-fill" style={{ width: `${progressPercent}%` }} />
+        <div className="np-thumb" style={{ left: `${progressPercent}%` }} />
+        {seekEnabled && (
+          <input
+            type="range"
+            className="cmp-seek"
+            min={0}
+            max={durationMs}
+            step={100}
+            value={displayPosition}
+            onMouseDown={handleSeekStart}
+            onTouchStart={handleSeekStart}
+            onChange={handleSeekChange}
+            onMouseUp={handleSeekEnd}
+            onTouchEnd={handleSeekEnd}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
+      </div>
+      <span className="np-time">{formatTime(durationMs)}</span>
+    </div>
+  );
+}
+
+export function CompactMediaPlayer({
+  mediaInfo,
+  albumArtUrl,
+  albumArtKey,
+  isPlaying,
+  volume,
+  volumeExpanded,
+  onVolumeExpandedChange,
+  onTogglePlayPause,
+  onVolumeChange,
+  prevFront,
+  prevBack,
+  nextFront,
+  nextBack,
+  onAnimatePrev,
+  onAnimateNext,
+  onLayoutChange,
+  sessions,
+  onNextPanel,
+}: CompactMediaPlayerProps) {
+  const t = useT();
+
+  const scrollVolume = (e: React.WheelEvent) => {
+    if (localStorage.getItem("nectar-notch-scroll-volume") !== "true") return;
+    e.stopPropagation();
+    const change = e.deltaY < 0 ? 0.02 : -0.02;
+    onVolumeChange(Math.min(1, Math.max(0, Math.round((volume + change) * 100) / 100)));
+  };
+  const seekRef = useRef<HTMLInputElement>(null);
+  const { displayPosition, durationMs, seekEnabled, progressPercent, handleSeekStart, handleSeekChange, handleSeekEnd } =
+    useMediaPosition(mediaInfo, isPlaying);
 
   return (
     <div className="cmp">
       {/* Row 1: Album art + Title/Artist + Visualizer */}
       <div className="cmp-row cmp-row-info">
-        <div className="cmp-art" onClick={(e) => { e.stopPropagation(); onLayoutChange('classic'); }} style={{ cursor: 'pointer' }}>
+        <div className="cmp-art" onClick={(e) => { e.stopPropagation(); onLayoutChange('classic'); }} style={{ cursor: 'pointer' }} data-tooltip={t("media.switchLayout")} aria-label={t("media.switchLayout")}>
+          <span className="art-switch-hint"><ArrowLeftRight size={14} strokeWidth={2} /></span>
           <AnimatePresence mode="wait" initial={false}>
             {albumArtUrl ? (
               <motion.img

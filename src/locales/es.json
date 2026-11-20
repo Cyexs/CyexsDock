@@ -577,6 +577,7 @@
   "prayer.arrived": "Hora de {name}",
   "media.art": "Portada",
   "media.audioOutput": "Salida de audio",
+  "media.switchLayout": "Cambiar diseño del reproductor",
   "battery.low": "Batería baja",
   "battery.onBatteryTitle": "Con batería",
   "cc.ethernet": "Ethernet",

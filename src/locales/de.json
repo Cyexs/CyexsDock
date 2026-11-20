@@ -577,6 +577,7 @@
   "prayer.arrived": "Zeit für {name}",
   "media.art": "Cover",
   "media.audioOutput": "Audioausgabe",
+  "media.switchLayout": "Player-Layout wechseln",
   "battery.low": "Akku niedrig",
   "battery.onBatteryTitle": "Im Akkubetrieb",
   "cc.ethernet": "Ethernet",

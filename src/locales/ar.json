@@ -577,6 +577,7 @@
   "prayer.arrived": "حان وقت {name}",
   "media.art": "الغلاف",
   "media.audioOutput": "إخراج الصوت",
+  "media.switchLayout": "تبديل تخطيط المشغل",
   "battery.low": "البطارية ضعيفة",
   "battery.onBatteryTitle": "على البطارية",
   "cc.ethernet": "إيثرنت",

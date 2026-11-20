@@ -577,6 +577,7 @@
   "prayer.arrived": "C'est l'heure de {name}",
   "media.art": "Pochette",
   "media.audioOutput": "Sortie audio",
+  "media.switchLayout": "Changer la disposition du lecteur",
   "battery.low": "Batterie faible",
   "battery.onBatteryTitle": "Sur batterie",
   "cc.ethernet": "Ethernet",

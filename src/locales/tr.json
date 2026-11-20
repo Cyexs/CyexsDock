@@ -531,6 +531,7 @@
   "prayer.arrived": "{name} vakti",
   "media.art": "Kapak Görseli",
   "media.audioOutput": "Ses Çıkışı",
+  "media.switchLayout": "Oynatıcı görünümünü değiştir",
   "battery.low": "Düşük Pil",
   "battery.onBatteryTitle": "Pilde",
   "cc.ethernet": "Ethernet",

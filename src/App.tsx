@@ -7,8 +7,8 @@ import type { UpdateCheckResult } from "./updater";
 import "./App.css";
 import "./surfaces.css";
 import { initTheme } from "./theme";
-import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, VolumeLowIcon, VolumeHighIcon, VolumeLevelIcon, MusicNoteIcon } from "./icons";
-import { CompactMediaPlayer } from "./CompactMediaPlayer";
+import { PlayIcon, PauseIcon, SkipBackIcon, SkipForwardIcon, VolumeLevelIcon, MusicNoteIcon } from "./icons";
+import { CompactMediaPlayer, NotchProgress } from "./CompactMediaPlayer";
 import { artTheme, FALLBACK_THEME, type ArtTheme } from "./music/palette";
 import { useWeather } from "./hooks/useWeather";
 import { useMarkets, formatTry, type Quote } from "./hooks/useMarkets";
@@ -64,6 +64,7 @@ import {
   Euro,
   Coins,
   MoonStar,
+  ArrowLeftRight,
 } from "lucide-react";
 import { setVisibleInterval } from "./hooks/visibleInterval";
 
@@ -2126,7 +2127,8 @@ function App() {
       const totalWidgets = Math.max(statusWidgets.left.length, statusWidgets.right.length) * 2;
       return Math.min(200 + totalWidgets * 65, 530) + dualClockExtra;
     }
-    if (isMusicMode && isHovered) return mediaLayout === 'compact' ? 300 : 340;
+    // Classic puts title, controls and progress in one row, so it needs room for the title.
+    if (isMusicMode && isHovered) return mediaLayout === 'compact' ? 300 : 460;
     if ((showPowerPulse || showLowBatteryPulse || showUpdatePulse) && !isHovered) return 200;
 
     let w = 140 + dualClockExtra + (agentWings ? (isMusicMode ? 24 : 56) : 0);
@@ -2374,7 +2376,7 @@ function App() {
                         }}
                       />
                     ) : (
-                    <div className="compact-premium-layout">
+                    <div className="compact-premium-layout" onWheel={handleVolumeWheel}>
                       <div className="album-art-section">
                         <motion.div
                           className="premium-album-art"
@@ -2387,7 +2389,10 @@ function App() {
                             window.dispatchEvent(new CustomEvent("settings-changed", { detail: { key: "media-layout", value: "compact" } }));
                           }}
                           style={{ cursor: 'pointer' }}
+                          {...tip(t("media.switchLayout"))}
+                          aria-label={t("media.switchLayout")}
                         >
+                          <span className="art-switch-hint"><ArrowLeftRight size={18} strokeWidth={2} /></span>
                           <AnimatePresence mode="wait" initial={false}>
                             {albumArtUrl ? (
                               <motion.img
@@ -2422,17 +2427,6 @@ function App() {
                             <TitleMarquee title={mediaInfo.title} />
                             <span className="premium-artist">{mediaInfo.artist}</span>
                           </div>
-                          <div className="header-visualizer-wrap">
-                            <MediaSourceButton sessions={mediaSessions} />
-                            <button className="music-calendar-btn" onClick={cycleNotchMode} {...tip(t("music.nextPanel"))} aria-label={t("music.nextPanel")}>
-                              <ChevronRight size={16} strokeWidth={1.75} />
-                            </button>
-                            <div className="header-visualizer">
-                              <Visualizer isPlaying={isPlaying} bars={5} height={18} />
-                            </div>
-                          </div>
-                        </div>
-
                         <div className="controls-row-sleek">
                           <motion.button
                             className="sleek-btn previous-btn"
@@ -2490,28 +2484,13 @@ function App() {
                           </motion.button>
                         </div>
 
-                        <div className="volume-slider-container" onWheel={handleVolumeWheel}>
-                          <button className="volume-end-btn" onClick={(e) => { e.stopPropagation(); handleVolumeChange(0); }} onPointerDown={(e) => e.stopPropagation()} aria-label={t("cc.volume")}>
-                            <VolumeLowIcon size={14} style={{ opacity: 0.65 }} />
-                          </button>
-                          <div className="slider-track-premium">
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.01"
-                              value={displayVolume}
-                              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                              onPointerDown={(e) => e.stopPropagation()}
-                              onClick={(e) => e.stopPropagation()}
-                              className="premium-slider"
-                            />
-                            <div className="slider-progress-fill" style={{ width: `${displayVolume * 100}%` }} />
-                          </div>
-                          <button className="volume-end-btn" onClick={(e) => { e.stopPropagation(); handleVolumeChange(1); }} onPointerDown={(e) => e.stopPropagation()} aria-label={t("cc.volume")}>
-                            <VolumeHighIcon size={16} style={{ opacity: 0.65 }} />
+                          <MediaSourceButton sessions={mediaSessions} />
+                          <button className="music-calendar-btn" onClick={cycleNotchMode} {...tip(t("music.nextPanel"))} aria-label={t("music.nextPanel")}>
+                            <ChevronRight size={16} strokeWidth={1.75} />
                           </button>
                         </div>
+
+                        <NotchProgress mediaInfo={mediaInfo} isPlaying={isPlaying} />
                       </div>
 
                     </div>
