@@ -12,7 +12,7 @@
 - Kaspersky klasör istisnası davranış izlemeyi kapsamıyor; derlemede duraklatma kullanılacak.
 
 ### Sıradaki işler
-1. "Cyexs Dev." oturumu açık değildi: sitedeki indirme bilgisini 1.10.9'a güncellet (setup `CyexsDock-Setup-1.10.9.exe` 7,2 MB, zip `CyexsDock-1.10.9-portable-windows-x64.zip` 10,1 MB).
+1. "Cyexs Dev." oturumuna 1.10.9 bildirildi; sitede güncellendiğini kontrol et.
 2. Kaspersky arayüzü küçültülmüş halde takılıp açılmadı; tekrarlarsa nedenine bak (Dock'tan bağımsız çıktı).
 3. 2026-11-20 listesindeki işler sürüyor.
 
