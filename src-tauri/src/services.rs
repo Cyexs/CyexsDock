@@ -3337,7 +3337,8 @@ pub unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> B
                         return true.into();
                     }
 
-                    if (lowercase_path.contains("cyexs.exe") && title != "Settings") ||
+                    // Exact file name: a plain substring also hid other apps such as tikcyexs.exe.
+                    if (lowercase_path.ends_with("\\cyexs.exe") && title != "Settings") ||
                        (lowercase_path.contains("conhost.exe")
                            && !(window_class == "ConsoleWindowClass" && crate::utils::setting_flag("nectar-dock-console-windows"))) ||
                        (lowercase_path.contains("explorer.exe") && !is_explorer_window) ||
