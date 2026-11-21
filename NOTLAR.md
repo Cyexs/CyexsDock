@@ -1,5 +1,21 @@
 # Notlar
 
+## 2026-11-21 oturumu
+
+### Yapılanlar
+- Kendi exe filtresi düzeltildi: "cyexs.exe" artık tam dosya adıyla eşleşiyor (`services.rs` `ends_with("\\cyexs.exe")`, `Dock.tsx` regex). tikcyexs.exe gibi uygulamalar Dock'ta görünüyor; kullanıcı doğruladı.
+- `tsc --noEmit` temiz geçti.
+- v1.10.9 GitHub'a yayınlandı (setup 7,2 MB, portable zip 10,1 MB).
+- Kaspersky, cargo build script exe'lerini `HEUR:Exploit.Win32.Convagent.gen` diye engelledi. Çözüm: korumayı ~30 dk duraklat, `src-tauri/target/release/build/<crate>` klasörlerini sil, yeniden derle.
+
+### Kararlar
+- Kaspersky klasör istisnası davranış izlemeyi kapsamıyor; derlemede duraklatma kullanılacak.
+
+### Sıradaki işler
+1. "Cyexs Dev." oturumu açık değildi: sitedeki indirme bilgisini 1.10.9'a güncellet (setup `CyexsDock-Setup-1.10.9.exe` 7,2 MB, zip `CyexsDock-1.10.9-portable-windows-x64.zip` 10,1 MB).
+2. Kaspersky arayüzü küçültülmüş halde takılıp açılmadı; tekrarlarsa nedenine bak (Dock'tan bağımsız çıktı).
+3. 2026-11-20 listesindeki işler sürüyor.
+
 ## 2026-11-20 oturumu
 
 ### Yapılanlar
