@@ -91,7 +91,7 @@ const fileOf = (p: string) =>
 const isIdentifier = (p: string) => !p.includes('/') && !p.includes('\\');
 
 const isCyexsWindow = (app: { name: string; path: string }) =>
-  /(^|[\\/])cyexs\.exe$/i.test(app.path) ||app.name.toLowerCase() === 'nectar';
+  /(^|[\\/])cyexs\.exe$/i.test(app.path) || app.name.toLowerCase() === 'nectar';
 
 const NECTAR_MENU_IDS = ["calendar", "settings", "taskmgr", "restart", "clearicons", "quit"];
 
