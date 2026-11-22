@@ -599,7 +599,7 @@ function App() {
   const [tourActive, setTourActive] = useState(false);
 
   const isAnyInteraction = isHovered || isNotchHovered || isEdgeHovered;
-  const isHidden = hotkeyHidden || ((notchMode === 'smart' || notchMode === 'peek') && isFullscreen) ||
+  const isHidden = hotkeyHidden || isFullscreen ||
     (!startupAnimating && !tourActive && !(agentActivity && isNotchWindow) && (
       (notchMode === 'smart' && isOverlapped && interactionState === 'none') ||
       (notchMode === 'peek' && interactionState === 'none' && !eventPeek)

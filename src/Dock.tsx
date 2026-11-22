@@ -658,7 +658,7 @@ const Dock = memo(function Dock() {
     }
   }, [isAnyInteraction, hideDelay]);
 
-  const isHidden = ((dockMode === 'smart' || dockMode === 'peek') && isFullscreen) || isShellSurfaceFocused ||
+  const isHidden = isFullscreen || isShellSurfaceFocused ||
     (!startupAnimating && (
       (dockMode === 'smart' && isOverlapped && interactionState === 'none') ||
       (dockMode === 'peek' && interactionState === 'none')

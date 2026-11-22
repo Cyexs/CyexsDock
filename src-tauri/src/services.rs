@@ -1191,6 +1191,7 @@ pub fn setup_system_worker(app_handle: AppHandle) -> Sender<SystemCommand> {
         let my_process_id = std::process::id();
         let mut last_monitor_update = Instant::now() - Duration::from_secs(5);
         let mut cached_scale = 1.0f64;
+        let mut last_fs_log: Option<(isize, bool, bool)> = None;
         
         loop {
             if SHUTTING_DOWN.load(Ordering::Relaxed) {
@@ -1310,6 +1311,18 @@ pub fn setup_system_worker(app_handle: AppHandle) -> Sender<SystemCommand> {
                                     
                                     current_is_fs = (is_client_fullscreen || is_matches_screen) && !is_maximized_standard;
                                     fg_info = Some((screen_rect, rect, current_is_fs || is_maximized));
+                                    // Logged once per change so fullscreen detection can be checked from nectar.log.
+                                    if last_fs_log != Some((hwnd.0 as isize, current_is_fs, is_maximized)) && (current_is_fs || is_maximized || is_matches_screen) {
+                                        last_fs_log = Some((hwnd.0 as isize, current_is_fs, is_maximized));
+                                        let mut cls = [0u8; 256];
+                                        let n = windows::Win32::UI::WindowsAndMessaging::GetClassNameA(hwnd, &mut cls);
+                                        crate::diagnostics::log(&format!(
+                                            "fullscreen check: class={} style={:#x} rect=({},{},{},{}) monitor=({},{},{},{}) client_fs={} matches_screen={} maximized={} caption={} -> fullscreen={}",
+                                            String::from_utf8_lossy(&cls[..n as usize]), style,
+                                            rect.left, rect.top, rect.right, rect.bottom,
+                                            screen_rect.left, screen_rect.top, screen_rect.right, screen_rect.bottom,
+                                            is_client_fullscreen, is_matches_screen, is_maximized, (style & WS_CAPTION.0) != 0, current_is_fs));
+                                    }
 
                                     if current_is_fs || is_maximized {
                                         should_overlap = true;
@@ -2139,10 +2152,9 @@ fn in_show_desktop_corner(x: i32, y: i32) -> bool {
     x >= right - CORNER && x < right && y >= bottom - CORNER && y < bottom
 }
 
-/// Smart and Peek notches stay hidden while a fullscreen window covers their monitor.
-fn notch_suppressed(app_handle: &AppHandle, label: &str) -> bool {
+/// Notches in every mode (Fixed too) stay hidden while a fullscreen window covers their monitor.
+fn notch_suppressed(_app_handle: &AppHandle, label: &str) -> bool {
     crate::state::get_flag(crate::state::notch_fullscreen(), label)
-        && crate::monitors::resolve_mode_for_label(app_handle, crate::types::WindowKind::Notch, label) != "fixed"
 }
 
 fn dock_edge_hover_allowed(fullscreen_on_dock: bool, at_bottom_edge: bool, dock_hovered: bool) -> bool {
