@@ -690,6 +690,8 @@
   "notch.section.agents": "KI-Agenten",
   "notch.agentApi": "Agent-Status",
   "notch.agentApi.desc": "KI-Agenten auf diesem Computer ihren Status neben dem Notch zeigen lassen. Gilt nach einem Neustart",
+  "notch.cat": "Show the cat",
+  "notch.cat.desc": "Show a cat on the left of the notch that reacts when you click or hover it",
   "agent.open": "Öffnen",
   "agent.dismiss": "Schließen",
   "agent.allow": "Erlauben",

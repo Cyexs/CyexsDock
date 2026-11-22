@@ -36,6 +36,7 @@ import {
   Volume2,
   MoonStar,
   Flag,
+  Cat,
 } from "lucide-react";
 import { DEFAULT_PANEL_ORDER, type CcLayout, type PanelId } from "../panelOrder";
 import { ControlCenterConfig } from "../components/ControlCenterConfig";
@@ -105,6 +106,8 @@ interface NotchTabProps {
   toggleArtworkTheme: () => void;
   agentApi: boolean;
   toggleAgentApi: () => void;
+  catVisible: boolean;
+  toggleCatVisible: () => void;
   panelScrollDirection: string;
   changePanelScrollDirection: (value: string) => void;
   notchScrollVolume: boolean;
@@ -188,6 +191,8 @@ export function NotchTab({
   toggleArtworkTheme,
   agentApi,
   toggleAgentApi,
+  catVisible,
+  toggleCatVisible,
   panelScrollDirection,
   changePanelScrollDirection,
   notchScrollVolume,
@@ -250,6 +255,13 @@ export function NotchTab({
 
         {notchMode !== "fixed" && <NotchEdgeDelay />}
         {notchMode !== "fixed" && <EdgeArea settingKey="nectar-notch-edge-area" />}
+
+        <SettingRow icon={Cat} label={t("notch.cat")} desc={t("notch.cat.desc")}>
+          <label className="toggle-switch">
+            <input type="checkbox" checked={catVisible} onChange={toggleCatVisible} />
+            <span className="slider"></span>
+          </label>
+        </SettingRow>
 
         <SettingRow icon={MonitorCheck} label={t("common.showOn")} desc={t("notch.showOn.desc")}>
           <Dropdown

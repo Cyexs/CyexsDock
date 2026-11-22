@@ -690,6 +690,8 @@
   "notch.section.agents": "وكلاء الذكاء الاصطناعي",
   "notch.agentApi": "حالة الوكيل",
   "notch.agentApi.desc": "اسمح لوكلاء الذكاء الاصطناعي على هذا الحاسوب بعرض حالتهم بجانب النوتش. يسري بعد إعادة التشغيل",
+  "notch.cat": "Show the cat",
+  "notch.cat.desc": "Show a cat on the left of the notch that reacts when you click or hover it",
   "agent.open": "فتح",
   "agent.dismiss": "تجاهل",
   "agent.allow": "سماح",

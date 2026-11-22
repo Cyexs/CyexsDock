@@ -233,6 +233,8 @@ function SettingsApp() {
               toggleArtworkTheme={settings.toggleArtworkTheme}
               agentApi={settings.agentApi}
               toggleAgentApi={settings.toggleAgentApi}
+              catVisible={settings.catVisible}
+              toggleCatVisible={settings.toggleCatVisible}
               panelScrollDirection={settings.panelScrollDirection}
               changePanelScrollDirection={settings.changePanelScrollDirection}
               notchScrollVolume={settings.notchScrollVolume}

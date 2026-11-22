@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
 import { useT } from "../i18n";
+import { CatMascot } from "./CatMascot";
+import { catPose, resolveOutfit } from "../mascot/mascot";
 
 export type AgentState = "working" | "tool" | "needs_input" | "done" | "error";
 
@@ -13,13 +15,8 @@ export interface AgentActivity {
   cancelled?: number;
 }
 
-const MASCOT: Record<AgentState, string> = {
-  working: "working",
-  tool: "working",
-  needs_input: "needs-input",
-  done: "done",
-  error: "error",
-};
+const agentPose = (state: AgentState) => catPose({ agent: state, music: false, idleMs: 0 });
+const catOutfit = () => resolveOutfit(localStorage.getItem("nectar-cat-outfit"), new Date());
 
 export function useAgentLabel(activity: AgentActivity) {
   const t = useT();
@@ -30,17 +27,16 @@ export function useAgentLabel(activity: AgentActivity) {
 
 export function AgentMascot({ activity }: { activity: AgentActivity }) {
   return (
-    <motion.img
+    <motion.span
       className="agent-mascot"
       key={activity.state}
-      src={`/mascot/${MASCOT[activity.state]}.svg`}
       title={useAgentLabel(activity)}
-      alt=""
-      draggable={false}
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 520, damping: 22 }}
-    />
+    >
+      <CatMascot pose={agentPose(activity.state)} outfit={catOutfit()} size={30} />
+    </motion.span>
   );
 }
 
@@ -72,7 +68,7 @@ export function AgentPanel({ activity, picks, onPick, onOpen, onDismiss, onAnswe
   return (
     <>
       <div className="agent-panel-head">
-        <img className="agent-panel-mascot" src={`/mascot/${MASCOT[activity.state]}.svg`} alt="" draggable={false} />
+        <CatMascot pose={agentPose(activity.state)} outfit={catOutfit()} size={40} />
         <div className="agent-panel-text">
           <b>{activity.name ?? t("agent.default")}</b>
           <span>{activity.project ? `${t(`agent.${activity.state}`)} · ${activity.project}` : t(`agent.${activity.state}`)}</span>

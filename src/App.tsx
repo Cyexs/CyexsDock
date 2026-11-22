@@ -32,6 +32,8 @@ import { NotchProgressBorder } from "./components/NotchProgressBorder";
 import { SurfaceShape } from "./components/SurfaceShape";
 import { playAgentSound } from "./agentSounds";
 import { AgentLeft, AgentDot, AgentPanel, type AgentActivity } from "./components/AgentStatus";
+import { CatMascot } from "./components/CatMascot";
+import { catPose, resolveOutfit, SLEEP_AFTER_MS } from "./mascot/mascot";
 import type { WidgetConfig } from "./components/StatusWidgetConfig";
 import {
   DEFAULT_DUAL_CLOCK_ZONE,
@@ -773,6 +775,7 @@ function App() {
   };
   const rememberedModeRef = useRef<"command-center" | "calendar" | null>(null);
   const [settingsVisualizerEnabled, setSettingsVisualizerEnabled] = useState(() => localStorage.getItem("nectar-visualizer-enabled") !== "false");
+  const [catVisible, setCatVisible] = useState(() => localStorage.getItem("nectar-cat-visible") !== "false");
   const [settingsAlbumArtEnabled, setSettingsAlbumArtEnabled] = useState(() => localStorage.getItem("nectar-media-album-art-enabled") !== "false");
   const [settingsAmbienceEnabled, setSettingsAmbienceEnabled] = useState(() => localStorage.getItem("nectar-media-ambience-enabled") !== "false");
   const [settingsCompactGlowEnabled, setSettingsCompactGlowEnabled] = useState(() => localStorage.getItem("nectar-media-compact-glow-enabled") !== "false");
@@ -892,6 +895,7 @@ function App() {
       setSettingsMusicCompactNotch(getVal("nectar-music-compact-notch", "true") !== "false");
       const viz = getVal("nectar-media-visualizer-enabled") ?? getVal("nectar-visualizer-enabled", "true");
       setSettingsVisualizerEnabled(viz !== "false");
+      setCatVisible(getVal("nectar-cat-visible", "true") !== "false");
       setSettingsAlbumArtEnabled(getVal("nectar-media-album-art-enabled", "true") !== "false");
       setSettingsAmbienceEnabled(getVal("nectar-media-ambience-enabled", "true") !== "false");
       setSettingsCompactGlowEnabled(getVal("nectar-media-compact-glow-enabled", "true") !== "false");
@@ -1058,6 +1062,7 @@ function App() {
       "nectar-cc-layout": (v) => setCcLayout(parseCcLayout(v === null ? null : String(v))),
       "nectar-media-visualizer-enabled": setSettingsVisualizerEnabled,
       "nectar-visualizer-enabled": setSettingsVisualizerEnabled,
+      "nectar-cat-visible": (v) => setCatVisible(v !== false && v !== "false"),
       "nectar-media-album-art-enabled": setSettingsAlbumArtEnabled,
       "nectar-media-ambience-enabled": setSettingsAmbienceEnabled,
       "nectar-media-compact-glow-enabled": setSettingsCompactGlowEnabled,
@@ -2094,6 +2099,14 @@ function App() {
   // Music mode shows any time we have media info (playing or paused) and music mode setting is enabled
   const isMusicMode = mediaInfo.has_media && nectarMode === 'music' && settingsMusicModeEnabled;
 
+  // Cat idle time since the last hover; one timer flips it to "sleeping" after SLEEP_AFTER_MS.
+  const [catIdleMs, setCatIdleMs] = useState(0);
+  useEffect(() => {
+    setCatIdleMs(0);
+    const id = setTimeout(() => setCatIdleMs(SLEEP_AFTER_MS), SLEEP_AFTER_MS);
+    return () => clearTimeout(id);
+  }, [isHovered]);
+
   // Second clock beside the time
   const showDualClock = settingsDualClockEnabled && !settingsLegacyMode && dualTime !== "";
   const dualClockSize = useMemo(
@@ -2583,6 +2596,13 @@ function App() {
                                 >
                                   {statusWidgets.left.map(renderStatusWidget)}
                                 </motion.div>
+                              ) : catVisible && isVisible && !isHidden ? (
+                                <CatMascot
+                                  pose={catPose({ agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs: catIdleMs })}
+                                  outfit={resolveOutfit(localStorage.getItem("nectar-cat-outfit"), new Date())}
+                                  size={30}
+                                  interactive
+                                />
                               ) : null}
                             </div>
 

@@ -75,6 +75,7 @@ export function useSettings() {
   const [musicModeEnabled, setMusicModeEnabled] = useState(true);
   const [musicCompactNotch, setMusicCompactNotch] = useState(true);
   const [agentApi, setAgentApi] = useState(() => localStorage.getItem("nectar-agent-api") === "true");
+  const [catVisible, setCatVisible] = useState(() => localStorage.getItem("nectar-cat-visible") !== "false");
   const [notchScrollVolume, setNotchScrollVolume] = useState(
     () => localStorage.getItem("nectar-notch-scroll-volume") === "true"
   );
@@ -285,6 +286,7 @@ export function useSettings() {
       apply(getVal("nectar-music-compact-notch"), setMusicCompactNotch, readBool);
       apply(getVal("nectar-notch-scroll-volume"), setNotchScrollVolume, (v) => v === "true");
       apply(getVal("nectar-agent-api"), setAgentApi, (v) => v === "true");
+      apply(getVal("nectar-cat-visible"), setCatVisible, (v) => v !== "false");
       apply(getVal("nectar-shelf-persist"), setShelfPersist, (v) => v === "true");
       apply(getVal("nectar-notch-remember-mode"), setRememberMode, (v) => v === "true");
       apply(getVal("nectar-volume-overlay-enabled"), setVolumeOverlayEnabled, readBool);
@@ -465,6 +467,7 @@ export function useSettings() {
     "nectar-music-compact-notch": setMusicCompactNotch,
     "nectar-notch-scroll-volume": setNotchScrollVolume,
     "nectar-agent-api": setAgentApi,
+    "nectar-cat-visible": setCatVisible,
     "nectar-shelf-persist": setShelfPersist,
     "nectar-notch-remember-mode": setRememberMode,
     "nectar-media-ambience-enabled": setMediaAmbienceEnabled,
@@ -689,6 +692,12 @@ export function useSettings() {
     const next = !agentApi;
     setAgentApi(next);
     saveSetting("nectar-agent-api", String(next));
+  };
+
+  const toggleCatVisible = () => {
+    const next = !catVisible;
+    setCatVisible(next);
+    saveSetting("nectar-cat-visible", String(next));
   };
 
   const toggleNotchScrollVolume = () => {
@@ -1324,6 +1333,8 @@ export function useSettings() {
     toggleMusicCompactNotch,
     agentApi,
     toggleAgentApi,
+    catVisible,
+    toggleCatVisible,
     notchScrollVolume,
     toggleNotchScrollVolume,
     shelfPersist,

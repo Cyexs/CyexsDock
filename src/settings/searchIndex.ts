@@ -22,7 +22,7 @@ export const SEARCH_ENTRIES: SearchEntry[] = [
     "notch.behavior", "notch.calendar", "notch.calendarSync", "notch.timer", "notch.timerSound", "notch.timerProgress",
     "notch.stopwatch", "notch.dualClock", "notch.musicMode", "notch.compactMode", "notch.mediaLayout", "notch.artworkTheme",
     "notch.ambientGlow", "notch.compactGlow", "notch.rememberMode",
-    "notch.panelOrder", "notch.scrollDirection", "notch.agentApi", "notch.agentSounds", "notch.scrollVolume", "notch.shelfPersist", "notch.weather",
+    "notch.panelOrder", "notch.scrollDirection", "notch.agentApi", "notch.cat", "notch.agentSounds", "notch.scrollVolume", "notch.shelfPersist", "notch.weather",
     "notch.hotkey", "notch.netWidget", "notch.edgeDelay", "notch.widgets.group", "notch.ccTiles", "notch.ccButtons", "notch.ccSliders",
   ]),
   ...group("dock", [
@@ -75,6 +75,7 @@ export const KEYWORDS: Record<string, string> = {
   "dock.attention": "badge unread notification flash",
   "notch.hotkey": "shortcut keyboard hide show toggle",
   "notch.agentApi": "ai claude codex agent status",
+  "notch.cat": "cat kedi mascot maskot pet",
   "notch.musicMode": "spotify media player song cover",
   "notch.weather": "temperature forecast city location",
   "notch.timer": "countdown pomodoro alarm",

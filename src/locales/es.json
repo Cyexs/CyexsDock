@@ -690,6 +690,8 @@
   "notch.section.agents": "Agentes de IA",
   "notch.agentApi": "Estado del agente",
   "notch.agentApi.desc": "Deja que los agentes de IA de este equipo muestren su estado junto al notch. Se aplica tras reiniciar",
+  "notch.cat": "Show the cat",
+  "notch.cat.desc": "Show a cat on the left of the notch that reacts when you click or hover it",
   "agent.open": "Abrir",
   "agent.dismiss": "Descartar",
   "agent.allow": "Permitir",

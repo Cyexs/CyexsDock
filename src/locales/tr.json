@@ -690,6 +690,8 @@
   "notch.section.agents": "Yapay zeka ajanları",
   "notch.agentApi": "Ajan durumu",
   "notch.agentApi.desc": "Bu bilgisayardaki yapay zeka ajanlarının durumunu çentiğin yanında göstermesine izin verir. Yeniden başlatınca geçerli olur",
+  "notch.cat": "Kediyi göster",
+  "notch.cat.desc": "Çentiğin solunda bir kedi gösterir; tıklayınca ve üstünde bekleyince tepki verir",
   "agent.open": "Aç",
   "agent.dismiss": "Kapat",
   "agent.allow": "İzin ver",

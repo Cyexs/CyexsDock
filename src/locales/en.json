@@ -696,6 +696,8 @@
   "notch.section.agents": "AI agents",
   "notch.agentApi": "Agent status",
   "notch.agentApi.desc": "Let AI agents on this computer show their status next to the notch. Applies after a restart",
+  "notch.cat": "Show the cat",
+  "notch.cat.desc": "Show a cat on the left of the notch that reacts when you click or hover it",
   "agent.open": "Open",
   "agent.dismiss": "Dismiss",
   "agent.allow": "Allow",

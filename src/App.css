@@ -2715,11 +2715,16 @@ img {
 }
 
 .agent-mascot {
-    height: 30px;
+    display: flex;
+    flex: none;
+}
+
+.cat-mascot {
     width: auto;
     flex: none;
-    image-rendering: pixelated;
 }
+
+.cat-mascot.pixel { image-rendering: pixelated; }
 
 .agent-dot {
     width: 9px;
@@ -2759,13 +2764,6 @@ img {
     display: flex;
     align-items: center;
     gap: 12px;
-}
-
-.agent-panel-mascot {
-    height: 40px;
-    width: auto;
-    flex: none;
-    image-rendering: pixelated;
 }
 
 .agent-panel-text {
