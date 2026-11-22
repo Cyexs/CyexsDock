@@ -53,13 +53,13 @@
 **Interfaces:**
 - Produces:
   - `type CatPose = "idle" | "working" | "needs-input" | "done" | "error" | "music" | "sleeping"`
-  - `type CatReaction = "pet" | "dizzy" | "hearts"`
+  - `type CatReaction = "pet" | "angry" | "dizzy" | "hearts"`
   - `type OutfitId = "none" | "witch" | "santa" | "bayram"` (more added with assets)
   - `const OUTFITS: OutfitId[]`
   - `catPose(input: { agent: AgentState | null; music: boolean; idleMs: number }): CatPose` — agent wins (map like `MASCOT` in `AgentStatus.tsx`), then music, then `sleeping` when `idleMs >= SLEEP_AFTER_MS` (10 min), else `idle`.
   - `autoOutfit(date: Date): OutfitId`
   - `resolveOutfit(setting: string | null, date: Date): OutfitId` — `"auto"`/null → `autoOutfit`, unknown id → `"none"`.
-  - `clickReaction(clickTimes: number[], now: number): CatReaction` — `"dizzy"` when 3 clicks within `DIZZY_WINDOW_MS` = 1500, else `"pet"` (the cat is being petted: closes its eyes happily, leans into the touch, a small heart).
+  - `clickReaction(clickTimes: number[], now: number): CatReaction` — counts clicks within the last `DIZZY_WINDOW_MS` = 1500 ms (including `now`): 1 → `"pet"` (the cat is being petted: closes its eyes happily, leans into the touch, a small heart), 2 → `"angry"` (too much petting), 3 or more → `"dizzy"`.
   - `HEARTS_HOVER_MS = 2000`
 
 - [ ] **Step 1: Write the failing self-check** (same `eq` helper style as `scripts/selfcheck-calendar.ts`)
@@ -80,6 +80,8 @@ eq(resolveOutfit("bogus", new Date(2026, 6, 1)), "none", "unknown id");
 eq(clickReaction([0, 500, 1000], 1000), "dizzy", "3 fast clicks");
 eq(clickReaction([0, 1000, 2000], 2000), "pet", "3 slow clicks");
 eq(clickReaction([1000], 1000), "pet", "1 click");
+eq(clickReaction([0, 700], 700), "angry", "2 fast clicks");
+eq(clickReaction([0, 2000], 2000), "pet", "2 slow clicks");
 console.log("selfcheck-mascot OK");
 ```
 
@@ -220,7 +222,7 @@ Load `ajan-ekosistemi:ajan-ekibi` first (Blender agent rules). Model the brand c
 - Create: `art/cat/render.py` (Blender batch script), `public/cat/<outfit>/<clip>.webp`
 - Modify: `public/cat/manifest.json`
 
-Clips per outfit: `idle, idle-left, idle-right, working, needs-input, done, error, music, sleeping, pet, dizzy, hearts` (12). Outfits: `none, witch, santa, bayram` (+ up to 2 more if budget allows). Output: animated WebP, 160×184 px (2× of the 80×92 display size), 24 fps, loops seamless; reactions ~1.2 s non-looping.
+Clips per outfit (13 × 4 outfits = 52): `idle, idle-left, idle-right, working, needs-input, done, error, music, sleeping, pet, angry, dizzy, hearts` (13). Outfits: `none, witch, santa, bayram` (+ up to 2 more if budget allows). Output: animated WebP, 160×184 px (2× of the 80×92 display size), 24 fps, loops seamless; reactions ~1.2 s non-looping.
 
 - [ ] **Step 1:** Write `render.py` (renders PNG frames per clip/outfit, encodes with `img2webp` or ffmpeg `libwebp_anim`).
 - [ ] **Step 2:** Render; write the manifest listing every produced clip.

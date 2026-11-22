@@ -25,7 +25,7 @@ Bugün kedi yalnızca AI ajan modu açıkken ve bir ajan çalışırken görün�
 
 ### Hedefler
 - Kedi ajan olmadan da görünür: çentiğin sol kanadında `idle`; müzik çalarken `music`; uzun süre hareketsizlikte `sleeping`. Ajan çalışınca bugünkü davranış aynen sürer. Ayar: Ayarlar > Çentik > "Kediyi göster" (varsayılan açık). *Benim kararım: sıradan kullanıcı ajan kullanmaz, kedi aksi halde hiç görünmez.*
-- Tepkiler: tıklayınca sevilir (gözlerini mutlulukla kapatır, dokunuşa yaslanır, küçük kalp; kullanıcı isteği 2026-11-23); üç kez hızlıca tıklayınca başı döner; imleç iki saniye üstünde kalınca kalp çıkar.
+- Tepkiler: tıklayınca sevilir (gözlerini mutlulukla kapatır, dokunuşa yaslanır, küçük kalp; kullanıcı isteği 2026-11-23); iki kez hızlıca tıklayınca kızar (fazla sevilmekten); üç kez hızlıca tıklayınca başı döner; imleç iki saniye üstünde kalınca kalp çıkar.
 - Gardırop: kediye sağ tıkla açılır, kıyafetin üstünde durunca dener, tıklayınca giyer. "Otomatik" seçeneği tarihe göre giydirir: Ekim cadı şapkası, Aralık yılbaşı şapkası, Ramazan ve Kurban Bayramı'nda bayram kıyafeti (bayram tarihleri mevcut tatil tablosundan). Her kıyafet, kedinin o kıyafetle render edilmiş kendi animasyon setidir.
 - Masaüstünde dolaşma: kedi çentikten masaüstüne sürüklenir, kıyafetiyle orada durur, imleci gözüyle izler. Tıkla dürt, sağ tıkla gardırop, çift tıkla çentiğe döner. Konum kalıcı.
 
