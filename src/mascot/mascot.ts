@@ -47,3 +47,15 @@ export function clickReaction(clickTimes: number[], now: number): CatReaction {
   const n = clickTimes.filter((t) => now - t < DIZZY_WINDOW_MS).length;
   return n >= 3 ? "dizzy" : n === 2 ? "angry" : "pet";
 }
+
+export type CatManifest = { outfits: Partial<Record<OutfitId, string[]>> };
+export type CatClip = CatPose | CatReaction | "idle-left" | "idle-right" | "idle-scratch";
+
+const POSES: string[] = ["idle", "working", "needs-input", "done", "error", "music", "sleeping"];
+
+// 3D clip for the outfit, else the no-outfit clip, else the pixel SVG (non-pose clips use idle).
+export function catSrc(m: CatManifest, outfit: OutfitId, clip: CatClip, sit = false): string {
+  if (m.outfits[outfit]?.includes(clip)) return `/cat/${outfit}/${clip}.webp`;
+  if (m.outfits.none?.includes(clip)) return `/cat/none/${clip}.webp`;
+  return `/mascot/${POSES.includes(clip) ? clip : "idle"}${sit ? "-sit" : ""}.svg`;
+}

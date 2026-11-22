@@ -1,5 +1,5 @@
 // Self-check for the cat mascot logic: bun scripts/selfcheck-mascot.ts
-import { autoOutfit, catPose, clickReaction, resolveOutfit } from "../src/mascot/mascot.ts";
+import { autoOutfit, catPose, catSrc, clickReaction, resolveOutfit } from "../src/mascot/mascot.ts";
 
 const eq = (a: unknown, b: unknown, m: string) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) {
@@ -28,4 +28,10 @@ eq(clickReaction([0, 2000, 4000], 4000), "pet", "3 slow clicks");
 eq(clickReaction([1000], 1000), "pet", "1 click");
 eq(clickReaction([0, 700], 700), "angry", "2 fast clicks");
 eq(clickReaction([0, 2000], 2000), "pet", "2 slow clicks");
+const m = { outfits: { none: ["idle", "pet"], santa: ["idle"] } };
+eq(catSrc(m, "santa", "idle"), "/cat/santa/idle.webp", "outfit clip");
+eq(catSrc(m, "santa", "pet"), "/cat/none/pet.webp", "fallback to no outfit");
+eq(catSrc(m, "witch", "music"), "/mascot/music.svg", "fallback to pixel");
+eq(catSrc(m, "witch", "hearts"), "/mascot/idle.svg", "reaction pixel fallback");
+eq(catSrc({ outfits: {} }, "none", "working", true), "/mascot/working-sit.svg", "sit variant");
 console.log("selfcheck-mascot OK");
