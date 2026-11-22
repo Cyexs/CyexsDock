@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { catSrc, clickReaction, DIZZY_WINDOW_MS, HEARTS_HOVER_MS, type CatPose, type CatReaction, type OutfitId } from "../mascot/mascot";
+import { catSrc, clickReaction, DIZZY_WINDOW_MS, HEARTS_HOVER_MS, resolveOutfit, type CatPose, type CatReaction, type OutfitId } from "../mascot/mascot";
 import { useCatManifest } from "../mascot/useCatManifest";
 
 const REACTION_MS = 1200;
 const SCRATCH_MS = 1800;
+
+// Cached per setting + local day so turkishHolidays does not run on every render.
+let outfitCache = { key: "", value: "none" as OutfitId };
+export function catOutfit(): OutfitId {
+  const setting = localStorage.getItem("nectar-cat-outfit");
+  const key = `${setting}|${new Date().toDateString()}`;
+  if (outfitCache.key !== key) outfitCache = { key, value: resolveOutfit(setting, new Date()) };
+  return outfitCache.value;
+}
 
 export function CatMascot(props: {
   pose: CatPose;
@@ -15,7 +24,9 @@ export function CatMascot(props: {
   onDragOut?: (screenX: number, screenY: number) => void; // Task 5: desktop drag-out
   look?: "left" | "center" | "right"; // Task 5: desktop cat looks at the cursor
 }) {
-  const { pose, outfit, sit, size, interactive, onContextMenu } = props;
+  const { pose, outfit, sit, size, onContextMenu } = props;
+  // Agent poses always win: reactions only while idle, sleeping or listening to music.
+  const interactive = props.interactive && (pose === "idle" || pose === "sleeping" || pose === "music");
   const manifest = useCatManifest();
   const [reaction, setReaction] = useState<CatReaction | null>(null);
   const [hovered, setHovered] = useState(false);
@@ -52,7 +63,8 @@ export function CatMascot(props: {
     reactionTimer.current = window.setTimeout(() => setReaction(null), REACTION_MS);
   };
 
-  const src = catSrc(manifest, outfit, reaction ?? (scratch ? "idle-scratch" : pose), sit);
+  const shown = interactive ? reaction : null;
+  const src = catSrc(manifest, outfit, shown ?? (scratch ? "idle-scratch" : pose), sit);
   return (
     <img
       className={`cat-mascot${src.endsWith(".svg") ? " pixel" : ""}`}

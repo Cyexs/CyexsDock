@@ -32,8 +32,8 @@ import { NotchProgressBorder } from "./components/NotchProgressBorder";
 import { SurfaceShape } from "./components/SurfaceShape";
 import { playAgentSound } from "./agentSounds";
 import { AgentLeft, AgentDot, AgentPanel, type AgentActivity } from "./components/AgentStatus";
-import { CatMascot } from "./components/CatMascot";
-import { catPose, resolveOutfit, SLEEP_AFTER_MS } from "./mascot/mascot";
+import { CatMascot, catOutfit } from "./components/CatMascot";
+import { catPose, SLEEP_AFTER_MS } from "./mascot/mascot";
 import type { WidgetConfig } from "./components/StatusWidgetConfig";
 import {
   DEFAULT_DUAL_CLOCK_ZONE,
@@ -2560,7 +2560,7 @@ function App() {
                             {/* Left: update activity (takes priority), visualizer (music), or weather (command-center, calendar) */}
                             <div className="side-content left">
                               {agentWings && agentActivity ? (
-                                <AgentLeft activity={agentActivity} dot={isMusicMode} />
+                                isVisible && !isHidden ? <AgentLeft activity={agentActivity} dot={isMusicMode} /> : null
                               ) : updateAvailable && showUpdateIndicator ? (
                                 <AnimatePresence>
                                   <motion.div
@@ -2585,25 +2585,31 @@ function App() {
                                     </motion.div>
                                   )}
                                 </AnimatePresence>
-                              ) : (!isMusicMode && isHovered && statusWidgets.left.length > 0) ? (
-                                <motion.div
-                                  key="left-widgets"
-                                  className="passive-features-group"
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                  transition={{ duration: 0.2, delay: 0.18 }}
-                                >
-                                  {statusWidgets.left.map(renderStatusWidget)}
-                                </motion.div>
-                              ) : catVisible && isVisible && !isHidden ? (
-                                <CatMascot
-                                  pose={catPose({ agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs: catIdleMs })}
-                                  outfit={resolveOutfit(localStorage.getItem("nectar-cat-outfit"), new Date())}
-                                  size={30}
-                                  interactive
-                                />
-                              ) : null}
+                              ) : (
+                                // One fragment so the cat stays mounted when the hover widgets appear beside it.
+                                <>
+                                  {catVisible && isVisible && !isHidden && (
+                                    <CatMascot
+                                      pose={catPose({ agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs: catIdleMs })}
+                                      outfit={catOutfit()}
+                                      size={30}
+                                      interactive
+                                    />
+                                  )}
+                                  {!isMusicMode && isHovered && statusWidgets.left.length > 0 && (
+                                    <motion.div
+                                      key="left-widgets"
+                                      className="passive-features-group"
+                                      initial={{ opacity: 0 }}
+                                      animate={{ opacity: 1 }}
+                                      exit={{ opacity: 0 }}
+                                      transition={{ duration: 0.2, delay: 0.18 }}
+                                    >
+                                      {statusWidgets.left.map(renderStatusWidget)}
+                                    </motion.div>
+                                  )}
+                                </>
+                              )}
                             </div>
 
                             {/* Center - Time (always visible) */}

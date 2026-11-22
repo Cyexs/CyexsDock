@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useT } from "../i18n";
-import { CatMascot } from "./CatMascot";
-import { catPose, resolveOutfit } from "../mascot/mascot";
+import { CatMascot, catOutfit } from "./CatMascot";
+import { catPose } from "../mascot/mascot";
 
 export type AgentState = "working" | "tool" | "needs_input" | "done" | "error";
 
@@ -16,7 +16,6 @@ export interface AgentActivity {
 }
 
 const agentPose = (state: AgentState) => catPose({ agent: state, music: false, idleMs: 0 });
-const catOutfit = () => resolveOutfit(localStorage.getItem("nectar-cat-outfit"), new Date());
 
 export function useAgentLabel(activity: AgentActivity) {
   const t = useT();
