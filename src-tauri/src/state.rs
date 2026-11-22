@@ -140,13 +140,16 @@ pub static OWN_FILE_DRAG: AtomicBool = AtomicBool::new(false);
 /// The notch cat is being dragged out: the notch stays interactive so the drag is not cut off.
 pub static CAT_DRAG: AtomicBool = AtomicBool::new(false);
 
-/// CAT_DRAG, released as soon as the left button is up (a lost pointerup cannot strand it).
+/// CAT_DRAG, released as soon as the primary button is up (a lost pointerup cannot strand it).
 pub fn cat_drag_active() -> bool {
-    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON, VK_RBUTTON};
+    use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_SWAPBUTTON};
     if !CAT_DRAG.load(std::sync::atomic::Ordering::Relaxed) {
         return false;
     }
-    let down = unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 };
+    // GetAsyncKeyState reads physical buttons; with swapped buttons the primary one is the right.
+    let vk = if unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0 { VK_RBUTTON } else { VK_LBUTTON };
+    let down = unsafe { (GetAsyncKeyState(vk.0 as i32) as u16 & 0x8000) != 0 };
     if !down {
         CAT_DRAG.store(false, std::sync::atomic::Ordering::Relaxed);
     }

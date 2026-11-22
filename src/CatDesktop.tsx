@@ -10,7 +10,8 @@ import type { AgentState } from "./components/AgentStatus";
 import { catPose, clampToScreen, SLEEP_AFTER_MS, type OutfitId } from "./mascot/mascot";
 
 const SIZE = { w: 140, h: 160 };
-const LOOK_POLL_MS = 250;
+const POLL_MS = 100; // fast enough that a click right after reaching the cat lands on it
+const HIT_PAD = 6;
 const LOOK_DEAD_ZONE = 80;
 const DRAG_START_PX = 4;
 const SAVE_DELAY_MS = 400;
@@ -105,9 +106,12 @@ export default function CatDesktop() {
     return () => clearTimeout(id);
   }, [touched]);
 
-  // Eyes follow the cursor; polled only while the cat is on screen.
+  // Eyes follow the cursor, and the empty margin lets clicks through to the app below; polled only while on screen.
+  const menuOpen = useRef(menu);
+  menuOpen.current = menu;
   useEffect(() => {
     if (!visible) return;
+    let ignoring = false;
     const id = window.setInterval(async () => {
       const c = await cursorPosition().catch(() => null);
       if (!c) return;
@@ -115,8 +119,20 @@ export default function CatDesktop() {
       const dx = c.x - centre;
       const zone = LOOK_DEAD_ZONE * scale.current;
       setLook(dx < -zone ? "left" : dx > zone ? "right" : "center");
-    }, LOOK_POLL_MS);
-    return () => clearInterval(id);
+      const r = document.querySelector(".cat-mascot")?.getBoundingClientRect();
+      const lx = c.x / scale.current - pos.current.x;
+      const ly = c.y / scale.current - pos.current.y;
+      const onCat = !!r && lx >= r.left - HIT_PAD && lx <= r.right + HIT_PAD && ly >= r.top - HIT_PAD && ly <= r.bottom + HIT_PAD;
+      const ignore = !onCat && !menuOpen.current && !down.current;
+      if (ignore !== ignoring) {
+        ignoring = ignore;
+        invoke("set_ignore_cursor_events", { ignore }).catch(() => {});
+      }
+    }, POLL_MS);
+    return () => {
+      clearInterval(id);
+      if (ignoring) invoke("set_ignore_cursor_events", { ignore: false }).catch(() => {});
+    };
   }, [visible]);
 
   return (

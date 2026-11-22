@@ -690,8 +690,8 @@
   "notch.section.agents": "وكلاء الذكاء الاصطناعي",
   "notch.agentApi": "حالة الوكيل",
   "notch.agentApi.desc": "اسمح لوكلاء الذكاء الاصطناعي على هذا الحاسوب بعرض حالتهم بجانب النوتش. يسري بعد إعادة التشغيل",
-  "notch.cat": "Show the cat",
-  "notch.cat.desc": "Show a cat on the left of the notch that reacts when you click or hover it",
+  "notch.cat": "إظهار القطة",
+  "notch.cat.desc": "تعرض قطة على يسار النوتش تتفاعل عند النقر عليها أو تمرير المؤشر فوقها",
   "agent.open": "فتح",
   "agent.dismiss": "تجاهل",
   "agent.allow": "سماح",
@@ -744,9 +744,9 @@
   "calendar.holidays": "العطل الرسمية",
   "notch.holidays": "العطل الرسمية",
   "notch.holidays.desc": "عرض العطل الرسمية التركية في التقويم",
-  "cat.outfit.auto": "Auto",
-  "cat.outfit.none": "No outfit",
-  "cat.outfit.witch": "Witch hat",
-  "cat.outfit.santa": "Santa hat",
-  "cat.outfit.bayram": "Festive outfit"
+  "cat.outfit.auto": "تلقائي",
+  "cat.outfit.none": "بدون زي",
+  "cat.outfit.witch": "قبعة الساحرة",
+  "cat.outfit.santa": "قبعة بابا نويل",
+  "cat.outfit.bayram": "ملابس العيد"
 }

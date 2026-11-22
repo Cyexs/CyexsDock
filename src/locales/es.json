@@ -690,8 +690,8 @@
   "notch.section.agents": "Agentes de IA",
   "notch.agentApi": "Estado del agente",
   "notch.agentApi.desc": "Deja que los agentes de IA de este equipo muestren su estado junto al notch. Se aplica tras reiniciar",
-  "notch.cat": "Show the cat",
-  "notch.cat.desc": "Show a cat on the left of the notch that reacts when you click or hover it",
+  "notch.cat": "Mostrar el gato",
+  "notch.cat.desc": "Muestra un gato a la izquierda del notch que reacciona al hacer clic o pasar el cursor por encima",
   "agent.open": "Abrir",
   "agent.dismiss": "Descartar",
   "agent.allow": "Permitir",
@@ -744,9 +744,9 @@
   "calendar.holidays": "Festivos",
   "notch.holidays": "Festivos",
   "notch.holidays.desc": "Mostrar los festivos de Turquía en el calendario",
-  "cat.outfit.auto": "Auto",
-  "cat.outfit.none": "No outfit",
-  "cat.outfit.witch": "Witch hat",
-  "cat.outfit.santa": "Santa hat",
-  "cat.outfit.bayram": "Festive outfit"
+  "cat.outfit.auto": "Automático",
+  "cat.outfit.none": "Sin atuendo",
+  "cat.outfit.witch": "Sombrero de bruja",
+  "cat.outfit.santa": "Gorro de Papá Noel",
+  "cat.outfit.bayram": "Ropa de fiesta"
 }
