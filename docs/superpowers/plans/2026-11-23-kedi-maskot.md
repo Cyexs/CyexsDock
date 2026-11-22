@@ -105,7 +105,7 @@ Check the 2026 bayram dates against the table in `src/localCalendar.ts:150-190` 
 - Consumes: `CatPose`, `CatReaction`, `OutfitId` (Task 1)
 - Produces:
   - `type CatManifest = { outfits: Partial<Record<OutfitId, string[]>> }` — list of available clip names per outfit, e.g. `{"none": ["idle","idle-left","idle-right","pet"]}`
-  - `catSrc(m: CatManifest, outfit: OutfitId, clip: CatPose | CatReaction | "idle-left" | "idle-right", sit?: boolean): string` — order: `/cat/<outfit>/<clip>.webp` → `/cat/none/<clip>.webp` → `/mascot/<pose>[-sit].svg` (reactions and look clips fall back to the `idle` SVG).
+  - `catSrc(m: CatManifest, outfit: OutfitId, clip: CatPose | CatReaction | "idle-left" | "idle-right" | "idle-scratch", sit?: boolean): string` — order: `/cat/<outfit>/<clip>.webp` → `/cat/none/<clip>.webp` → `/mascot/<pose>[-sit].svg` (reactions and look clips fall back to the `idle` SVG).
   - `useCatManifest(): CatManifest` — fetches `/cat/manifest.json` once, `{outfits:{}}` on error.
 
 - [ ] **Step 1: Add failing checks**
@@ -141,6 +141,7 @@ eq(catSrc({ outfits: {} }, "none", "working", true), "/mascot/working-sit.svg", 
 
 Behaviour:
 - Left wing: when the current branch would render `null` and `nectar-cat-visible !== "false"`, render `CatMascot` with `catPose({agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs})`. `idleMs` from last pointer/keyboard activity (reuse an existing idle source if `App.tsx` has one; else `Date.now() - lastHover`).
+- Idle break: while the pose is `idle` (no reaction, not hovered), every random 30-90 s play `idle-scratch` once (the cat scratches itself behind the ear / its back with a hind paw), then back to `idle`.
 - Click → `clickReaction` clip for ~1.2 s then back. Hover 2000 ms → `hearts`. Reactions play only when `interactive`.
 - `<img>` is unmounted / `display:none` while the notch window is hidden, so the WebP stops.
 - Setting row in the notch section of `NotchTab.tsx`: label "Kediyi göster" / "Show the cat", key `nectar-cat-visible`, default on, added to the sync map and `searchIndex.ts`.
@@ -222,7 +223,7 @@ Load `ajan-ekosistemi:ajan-ekibi` first (Blender agent rules). Model the brand c
 - Create: `art/cat/render.py` (Blender batch script), `public/cat/<outfit>/<clip>.webp`
 - Modify: `public/cat/manifest.json`
 
-Clips per outfit (13 × 4 outfits = 52): `idle, idle-left, idle-right, working, needs-input, done, error, music, sleeping, pet, angry, dizzy, hearts` (13). Outfits: `none, witch, santa, bayram` (+ up to 2 more if budget allows). Output: animated WebP, 160×184 px (2× of the 80×92 display size), 24 fps, loops seamless; reactions ~1.2 s non-looping.
+Clips per outfit (14 × 4 outfits = 56): `idle, idle-left, idle-right, working, needs-input, done, error, music, sleeping, pet, angry, dizzy, hearts, idle-scratch` (14). Outfits: `none, witch, santa, bayram` (+ up to 2 more if budget allows). Output: animated WebP, 160×184 px (2× of the 80×92 display size), 24 fps, loops seamless; reactions ~1.2 s non-looping.
 
 - [ ] **Step 1:** Write `render.py` (renders PNG frames per clip/outfit, encodes with `img2webp` or ffmpeg `libwebp_anim`).
 - [ ] **Step 2:** Render; write the manifest listing every produced clip.
