@@ -788,6 +788,14 @@ function App() {
   const [settingsVisualizerEnabled, setSettingsVisualizerEnabled] = useState(() => localStorage.getItem("nectar-visualizer-enabled") !== "false");
   const [catSetting, setCatSetting] = useState<OutfitSetting>(() => (localStorage.getItem("nectar-cat-outfit") as OutfitSetting) || "auto");
   const [catVisible, setCatVisible] = useState(() => localStorage.getItem("nectar-cat-visible") !== "false");
+  const [catOnDesktop, setCatOnDesktop] = useState(false);
+  // Desktop cat (cat.html) owns nectar-cat-desktop; useSettingsSync drops the null that brings it back.
+  useEffect(() => {
+    const un = listen<{ key: string; value: unknown }>("settings-changed", (e) => {
+      if (e.payload.key === "nectar-cat-desktop") setCatOnDesktop(e.payload.value != null);
+    });
+    return () => { un.then((f) => f()); };
+  }, []);
   const [settingsAlbumArtEnabled, setSettingsAlbumArtEnabled] = useState(() => localStorage.getItem("nectar-media-album-art-enabled") !== "false");
   const [settingsAmbienceEnabled, setSettingsAmbienceEnabled] = useState(() => localStorage.getItem("nectar-media-ambience-enabled") !== "false");
   const [settingsCompactGlowEnabled, setSettingsCompactGlowEnabled] = useState(() => localStorage.getItem("nectar-media-compact-glow-enabled") !== "false");
@@ -908,6 +916,9 @@ function App() {
       const viz = getVal("nectar-media-visualizer-enabled") ?? getVal("nectar-visualizer-enabled", "true");
       setSettingsVisualizerEnabled(viz !== "false");
       setCatVisible(getVal("nectar-cat-visible", "true") !== "false");
+      const catDesk = settings["nectar-cat-desktop"] as { x: number; y: number } | null | undefined;
+      setCatOnDesktop(catDesk != null);
+      if (catDesk && windowLabel === 'main') invoke("cat_to_desktop", { x: catDesk.x, y: catDesk.y }).catch(() => {});
       setSettingsAlbumArtEnabled(getVal("nectar-media-album-art-enabled", "true") !== "false");
       setSettingsAmbienceEnabled(getVal("nectar-media-ambience-enabled", "true") !== "false");
       setSettingsCompactGlowEnabled(getVal("nectar-media-compact-glow-enabled", "true") !== "false");
@@ -2601,7 +2612,7 @@ function App() {
                               ) : (
                                 // One fragment so the cat stays mounted when the hover widgets appear beside it.
                                 <>
-                                  {catVisible && isVisible && !isHidden && (
+                                  {catVisible && !catOnDesktop && isVisible && !isHidden && (
                                     <span style={{ position: 'relative', display: 'flex' }}>
                                       <CatMascot
                                         pose={catPose({ agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs: catIdleMs })}
@@ -2609,6 +2620,12 @@ function App() {
                                         size={30}
                                         interactive
                                         onContextMenu={(e) => { e.preventDefault(); setCatMenu(true); }}
+                                        onDragOut={(x, y) => {
+                                          setCatOnDesktop(true);
+                                          setCatMenu(false);
+                                          // Window is 140x160: put the cat under the pointer.
+                                          invoke("cat_to_desktop", { x: x - 70, y: y - 120 }).catch(console.error);
+                                        }}
                                       />
                                       {catMenu && (
                                         <CatWardrobe

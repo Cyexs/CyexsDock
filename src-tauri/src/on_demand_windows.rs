@@ -8,9 +8,11 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder}
 
 pub const SETTINGS: &str = "settings";
 pub const CALENDAR: &str = "calendar";
+pub const CAT: &str = "cat";
 
 static SETTINGS_BUILDING: AtomicBool = AtomicBool::new(false);
 static CALENDAR_BUILDING: AtomicBool = AtomicBool::new(false);
+static CAT_BUILDING: AtomicBool = AtomicBool::new(false);
 static WAITING_FOR_PAINT: Mutex<Option<HashSet<&'static str>>> = Mutex::new(None);
 
 const PAINT_WAIT: Duration = Duration::from_millis(2500);
@@ -143,9 +145,67 @@ pub fn open(app: &AppHandle, label: &str) {
     });
 }
 
+// Desktop cat: small, transparent, topmost, off the taskbar, never steals focus. Built only when dragged out.
+pub fn open_cat(app: &AppHandle, x: f64, y: f64) {
+    if let Some(win) = app.get_webview_window(CAT) {
+        let _ = win.set_position(tauri::LogicalPosition::new(x, y));
+        present(&win);
+        return;
+    }
+    if CAT_BUILDING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let built = WebviewWindowBuilder::new(&app, CAT, WebviewUrl::App("cat.html".into()))
+            .title("CyexsDock Cat")
+            .inner_size(140.0, 160.0)
+            .position(x, y)
+            .decorations(false)
+            .transparent(true)
+            .resizable(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .shadow(false)
+            .focused(false)
+            .visible(false)
+            .build();
+        if let Ok(win) = built {
+            win.on_window_event(|event| {
+                // Alt+F4 must not strand the saved desktop cat; double-click is the way back.
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                }
+            });
+            start_waiting(CAT);
+            tokio::time::sleep(PAINT_WAIT).await;
+            if take_waiting(CAT) {
+                present(&win);
+            }
+        }
+        CAT_BUILDING.store(false, Ordering::SeqCst);
+    });
+}
+
+pub fn close_cat(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window(CAT) {
+        let _ = win.destroy();
+        crate::memory_saver::trim_soon();
+    }
+}
+
 fn present(win: &WebviewWindow) {
     set_suspended(win, false);
     set_memory_level(win, false);
+    if win.label() == CAT {
+        if let Ok(hwnd) = win.hwnd() {
+            unsafe {
+                use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
+                let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+            }
+        }
+        return;
+    }
     let _ = win.show();
     let _ = win.unminimize();
     let _ = win.set_focus();

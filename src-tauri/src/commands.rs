@@ -2089,6 +2089,18 @@ pub fn open_calendar_window(app: AppHandle) {
 }
 
 #[tauri::command]
+pub fn cat_to_desktop(app: AppHandle, x: f64, y: f64) {
+    crate::on_demand_windows::open_cat(&app, x, y);
+}
+
+#[tauri::command]
+pub fn cat_to_notch(app: AppHandle) {
+    // Clear first: the notch brings its cat back on this settings-changed event.
+    let _ = save_setting(app.clone(), "nectar-cat-desktop".into(), serde_json::Value::Null);
+    crate::on_demand_windows::close_cat(&app);
+}
+
+#[tauri::command]
 pub fn open_tray_at_cursor() {
     use windows::Win32::Foundation::POINT;
     use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;

@@ -1425,6 +1425,7 @@ pub fn setup_system_worker(app_handle: AppHandle) -> Sender<SystemCommand> {
                 crate::state::set_flag(crate::state::notch_fullscreen(), "main", fullscreen_on_notch);
                 if Some(fullscreen_on_notch) != last_notch_fullscreen || last_emit.elapsed() >= Duration::from_secs(3) {
                     let _ = handle_visibility.emit_to("main", "notch-fullscreen", fullscreen_on_notch);
+                    let _ = handle_visibility.emit_to(crate::on_demand_windows::CAT, "notch-fullscreen", current_is_fs && fg_on(crate::on_demand_windows::CAT));
                     last_notch_fullscreen = Some(fullscreen_on_notch);
                 }
 
