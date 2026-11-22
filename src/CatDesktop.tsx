@@ -36,6 +36,7 @@ export default function CatDesktop() {
   const pos = useRef({ x: 0, y: 0 }); // logical, top-left
   const scale = useRef(1);
   const down = useRef<{ x: number; y: number } | null>(null);
+  const dragUntil = useRef(0); // the OS drag loop sends no pointerup, so "dragging" lasts until moves settle
   const visible = catVisible && !fullscreen;
 
   // Mount: pull the saved spot back on screen (monitor unplugged), then show without focus.
@@ -64,6 +65,7 @@ export default function CatDesktop() {
   useEffect(() => {
     const un = win.onMoved(({ payload }) => {
       pos.current = payload.toLogical(scale.current);
+      dragUntil.current = Date.now() + SAVE_DELAY_MS;
       clearTimeout(saveTimer.current);
       saveTimer.current = window.setTimeout(() => savePos(pos.current), SAVE_DELAY_MS);
     });
@@ -112,9 +114,12 @@ export default function CatDesktop() {
   useEffect(() => {
     if (!visible) return;
     let ignoring = false;
+    let cancelled = false;
+    // A late tick from a previous run may have left the window ignoring the mouse.
+    invoke("set_ignore_cursor_events", { ignore: false }).catch(() => {});
     const id = window.setInterval(async () => {
       const c = await cursorPosition().catch(() => null);
-      if (!c) return;
+      if (!c || cancelled) return;
       const centre = (pos.current.x + SIZE.w / 2) * scale.current;
       const dx = c.x - centre;
       const zone = LOOK_DEAD_ZONE * scale.current;
@@ -123,13 +128,14 @@ export default function CatDesktop() {
       const lx = c.x / scale.current - pos.current.x;
       const ly = c.y / scale.current - pos.current.y;
       const onCat = !!r && lx >= r.left - HIT_PAD && lx <= r.right + HIT_PAD && ly >= r.top - HIT_PAD && ly <= r.bottom + HIT_PAD;
-      const ignore = !onCat && !menuOpen.current && !down.current;
+      const ignore = !onCat && !menuOpen.current && !down.current && Date.now() >= dragUntil.current;
       if (ignore !== ignoring) {
         ignoring = ignore;
         invoke("set_ignore_cursor_events", { ignore }).catch(() => {});
       }
     }, POLL_MS);
     return () => {
+      cancelled = true;
       clearInterval(id);
       if (ignoring) invoke("set_ignore_cursor_events", { ignore: false }).catch(() => {});
     };
@@ -144,6 +150,7 @@ export default function CatDesktop() {
         const d = down.current;
         if (!d || Math.hypot(e.screenX - d.x, e.screenY - d.y) < DRAG_START_PX) return;
         down.current = null;
+        dragUntil.current = Date.now() + SAVE_DELAY_MS;
         win.startDragging().catch(() => {});
       }}
       onPointerUp={() => { down.current = null; }}
