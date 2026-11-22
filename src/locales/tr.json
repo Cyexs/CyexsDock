@@ -743,5 +743,10 @@
   "calendar.local": "Yerel",
   "calendar.holidays": "Resmî tatiller",
   "notch.holidays": "Resmî tatiller",
-  "notch.holidays.desc": "Takvimde Türkiye'deki resmî tatilleri göster"
+  "notch.holidays.desc": "Takvimde Türkiye'deki resmî tatilleri göster",
+  "cat.outfit.auto": "Otomatik",
+  "cat.outfit.none": "Kıyafetsiz",
+  "cat.outfit.witch": "Cadı şapkası",
+  "cat.outfit.santa": "Yılbaşı şapkası",
+  "cat.outfit.bayram": "Bayramlık"
 }

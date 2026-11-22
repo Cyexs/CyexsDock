@@ -7,8 +7,8 @@ const SCRATCH_MS = 1800;
 
 // Cached per setting + local day so turkishHolidays does not run on every render.
 let outfitCache = { key: "", value: "none" as OutfitId };
-export function catOutfit(): OutfitId {
-  const setting = localStorage.getItem("nectar-cat-outfit");
+export function catOutfit(saved?: string): OutfitId {
+  const setting = saved ?? localStorage.getItem("nectar-cat-outfit");
   const key = `${setting}|${new Date().toDateString()}`;
   if (outfitCache.key !== key) outfitCache = { key, value: resolveOutfit(setting, new Date()) };
   return outfitCache.value;

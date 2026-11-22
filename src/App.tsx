@@ -33,6 +33,8 @@ import { SurfaceShape } from "./components/SurfaceShape";
 import { playAgentSound } from "./agentSounds";
 import { AgentLeft, AgentDot, AgentPanel, type AgentActivity } from "./components/AgentStatus";
 import { CatMascot, catOutfit } from "./components/CatMascot";
+import { CatWardrobe, type OutfitSetting } from "./components/CatWardrobe";
+import type { OutfitId } from "./mascot/mascot";
 import { catPose, SLEEP_AFTER_MS } from "./mascot/mascot";
 import type { WidgetConfig } from "./components/StatusWidgetConfig";
 import {
@@ -775,6 +777,9 @@ function App() {
   };
   const rememberedModeRef = useRef<"command-center" | "calendar" | null>(null);
   const [settingsVisualizerEnabled, setSettingsVisualizerEnabled] = useState(() => localStorage.getItem("nectar-visualizer-enabled") !== "false");
+  const [catSetting, setCatSetting] = useState<OutfitSetting>(() => (localStorage.getItem("nectar-cat-outfit") as OutfitSetting) || "auto");
+  const [catMenu, setCatMenu] = useState(false);
+  const [catPreview, setCatPreview] = useState<OutfitId | null>(null);
   const [catVisible, setCatVisible] = useState(() => localStorage.getItem("nectar-cat-visible") !== "false");
   const [settingsAlbumArtEnabled, setSettingsAlbumArtEnabled] = useState(() => localStorage.getItem("nectar-media-album-art-enabled") !== "false");
   const [settingsAmbienceEnabled, setSettingsAmbienceEnabled] = useState(() => localStorage.getItem("nectar-media-ambience-enabled") !== "false");
@@ -1063,6 +1068,7 @@ function App() {
       "nectar-media-visualizer-enabled": setSettingsVisualizerEnabled,
       "nectar-visualizer-enabled": setSettingsVisualizerEnabled,
       "nectar-cat-visible": (v) => setCatVisible(v !== false && v !== "false"),
+      "nectar-cat-outfit": (v) => { localStorage.setItem("nectar-cat-outfit", String(v)); setCatSetting(String(v) as OutfitSetting); },
       "nectar-media-album-art-enabled": setSettingsAlbumArtEnabled,
       "nectar-media-ambience-enabled": setSettingsAmbienceEnabled,
       "nectar-media-compact-glow-enabled": setSettingsCompactGlowEnabled,
@@ -2589,12 +2595,30 @@ function App() {
                                 // One fragment so the cat stays mounted when the hover widgets appear beside it.
                                 <>
                                   {catVisible && isVisible && !isHidden && (
-                                    <CatMascot
-                                      pose={catPose({ agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs: catIdleMs })}
-                                      outfit={catOutfit()}
-                                      size={30}
-                                      interactive
-                                    />
+                                    <span style={{ position: 'relative', display: 'flex' }}>
+                                      <CatMascot
+                                        pose={catPose({ agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs: catIdleMs })}
+                                        outfit={catPreview ?? catOutfit(catSetting)}
+                                        size={30}
+                                        interactive
+                                        onContextMenu={(e) => { e.preventDefault(); setCatMenu(true); }}
+                                      />
+                                      {catMenu && (
+                                        <CatWardrobe
+                                          value={catSetting}
+                                          t={t}
+                                          onPreview={setCatPreview}
+                                          onClose={() => { setCatMenu(false); setCatPreview(null); }}
+                                          onPick={(v) => {
+                                            localStorage.setItem("nectar-cat-outfit", v);
+                                            invoke("save_setting", { key: "nectar-cat-outfit", value: v }).catch(console.error);
+                                            setCatSetting(v);
+                                            setCatMenu(false);
+                                            setCatPreview(null);
+                                          }}
+                                        />
+                                      )}
+                                    </span>
                                   )}
                                   {!isMusicMode && isHovered && statusWidgets.left.length > 0 && (
                                     <motion.div

@@ -743,5 +743,10 @@
   "calendar.local": "Lokal",
   "calendar.holidays": "Feiertage",
   "notch.holidays": "Feiertage",
-  "notch.holidays.desc": "Türkische Feiertage im Kalender anzeigen"
+  "notch.holidays.desc": "Türkische Feiertage im Kalender anzeigen",
+  "cat.outfit.auto": "Auto",
+  "cat.outfit.none": "No outfit",
+  "cat.outfit.witch": "Witch hat",
+  "cat.outfit.santa": "Santa hat",
+  "cat.outfit.bayram": "Festive outfit"
 }

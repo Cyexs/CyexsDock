@@ -749,5 +749,10 @@
   "calendar.local": "Local",
   "calendar.holidays": "Public holidays",
   "notch.holidays": "Public holidays",
-  "notch.holidays.desc": "Show Turkish public holidays in the calendar"
+  "notch.holidays.desc": "Show Turkish public holidays in the calendar",
+  "cat.outfit.auto": "Auto",
+  "cat.outfit.none": "No outfit",
+  "cat.outfit.witch": "Witch hat",
+  "cat.outfit.santa": "Santa hat",
+  "cat.outfit.bayram": "Festive outfit"
 }
