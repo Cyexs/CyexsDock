@@ -2094,6 +2094,16 @@ pub fn cat_to_desktop(app: AppHandle, x: f64, y: f64) {
 }
 
 #[tauri::command]
+pub fn set_cat_dragging(active: bool) {
+    crate::state::CAT_DRAG.store(active, Ordering::Relaxed);
+}
+
+#[tauri::command]
+pub fn cat_set_hidden(app: AppHandle, hidden: bool) {
+    crate::on_demand_windows::set_cat_hidden(&app, hidden);
+}
+
+#[tauri::command]
 pub fn cat_to_notch(app: AppHandle) {
     // Clear first: the notch brings its cat back on this settings-changed event.
     let _ = save_setting(app.clone(), "nectar-cat-desktop".into(), serde_json::Value::Null);

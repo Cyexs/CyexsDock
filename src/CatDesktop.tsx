@@ -1,12 +1,13 @@
 // Desktop cat window (label "cat"): the notch cat dragged onto the desktop.
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emitTo, listen } from "@tauri-apps/api/event";
 import { availableMonitors, cursorPosition, getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
 import { CatMascot, catOutfit } from "./components/CatMascot";
 import { CatWardrobe, type OutfitSetting } from "./components/CatWardrobe";
 import { useT } from "./i18n";
-import { clampToScreen, type OutfitId } from "./mascot/mascot";
+import type { AgentState } from "./components/AgentStatus";
+import { catPose, clampToScreen, SLEEP_AFTER_MS, type OutfitId } from "./mascot/mascot";
 
 const SIZE = { w: 140, h: 160 };
 const LOOK_POLL_MS = 250;
@@ -26,6 +27,11 @@ export default function CatDesktop() {
   const [look, setLook] = useState<"left" | "center" | "right">("center");
   const [fullscreen, setFullscreen] = useState(false);
   const [catVisible, setCatVisible] = useState(true);
+  // Agent + music come from the notch (App.tsx "cat-pose"); idle/sleep is this cat's own hover.
+  const [mirror, setMirror] = useState<{ agent: AgentState | null; music: boolean }>({ agent: null, music: false });
+  const [idleMs, setIdleMs] = useState(0);
+  const [touched, setTouched] = useState(0);
+  const saveTimer = useRef<number | undefined>(undefined);
   const pos = useRef({ x: 0, y: 0 }); // logical, top-left
   const scale = useRef(1);
   const down = useRef<{ x: number; y: number } | null>(null);
@@ -49,21 +55,20 @@ export default function CatDesktop() {
       const saved = await invoke<Record<string, unknown>>("load_settings").catch(() => ({} as Record<string, unknown>));
       const shown = saved["nectar-cat-visible"] !== false && saved["nectar-cat-visible"] !== "false";
       setCatVisible(shown);
-      if (shown) invoke("on_demand_window_ready").catch(() => {});
+      invoke(shown ? "on_demand_window_ready" : "cat_set_hidden", shown ? undefined : { hidden: true }).catch(() => {});
     })().catch(console.error);
   }, []);
 
   // Save the spot once a drag settles.
   useEffect(() => {
-    let timer: number | undefined;
     const un = win.onMoved(({ payload }) => {
       pos.current = payload.toLogical(scale.current);
-      clearTimeout(timer);
-      timer = window.setTimeout(() => savePos(pos.current), SAVE_DELAY_MS);
+      clearTimeout(saveTimer.current);
+      saveTimer.current = window.setTimeout(() => savePos(pos.current), SAVE_DELAY_MS);
     });
     const unScale = win.onScaleChanged(({ payload }) => { scale.current = payload.scaleFactor; });
     return () => {
-      clearTimeout(timer);
+      clearTimeout(saveTimer.current);
       un.then((f) => f());
       unScale.then((f) => f());
     };
@@ -71,6 +76,8 @@ export default function CatDesktop() {
 
   useEffect(() => {
     const unFs = listen<boolean>("notch-fullscreen", (e) => setFullscreen(e.payload));
+    const unPose = listen<{ agent: AgentState | null; music: boolean }>("cat-pose", (e) => setMirror(e.payload));
+    unPose.then(() => emitTo("main", "cat-pose-request").catch(() => {}));
     const unSet = listen<{ key: string; value: unknown }>("settings-changed", (e) => {
       const { key, value } = e.payload;
       if (key === "nectar-cat-outfit") setSetting((value == null ? "auto" : String(value)) as OutfitSetting);
@@ -78,6 +85,7 @@ export default function CatDesktop() {
     });
     return () => {
       unFs.then((f) => f());
+      unPose.then((f) => f());
       unSet.then((f) => f());
     };
   }, []);
@@ -86,9 +94,16 @@ export default function CatDesktop() {
   const firstRun = useRef(true);
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return; }
-    if (visible) invoke("cat_to_desktop", pos.current).catch(() => {});
-    else { setMenu(false); win.hide().catch(() => {}); }
+    if (!visible) setMenu(false);
+    invoke("cat_set_hidden", { hidden: !visible }).catch(() => {});
   }, [visible]);
+
+  // Sleeps after SLEEP_AFTER_MS without a hover or click on the cat.
+  useEffect(() => {
+    setIdleMs(0);
+    const id = window.setTimeout(() => setIdleMs(SLEEP_AFTER_MS), SLEEP_AFTER_MS);
+    return () => clearTimeout(id);
+  }, [touched]);
 
   // Eyes follow the cursor; polled only while the cat is on screen.
   useEffect(() => {
@@ -107,6 +122,7 @@ export default function CatDesktop() {
   return (
     <div
       className="cat-desktop"
+      onPointerEnter={() => setTouched((n) => n + 1)}
       onPointerDown={(e) => { if (e.button === 0 && !menu) down.current = { x: e.screenX, y: e.screenY }; }}
       onPointerMove={(e) => {
         const d = down.current;
@@ -115,10 +131,13 @@ export default function CatDesktop() {
         win.startDragging().catch(() => {});
       }}
       onPointerUp={() => { down.current = null; }}
-      onDoubleClick={() => invoke("cat_to_notch").catch(console.error)}
+      onDoubleClick={() => {
+        clearTimeout(saveTimer.current); // a late save must not overwrite the null cat_to_notch writes
+        invoke("cat_to_notch").catch(console.error);
+      }}
     >
       <CatMascot
-        pose="idle"
+        pose={catPose({ agent: mirror.agent, music: mirror.music, idleMs })}
         outfit={preview ?? catOutfit(setting)}
         size={120}
         interactive

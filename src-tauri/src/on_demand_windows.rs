@@ -13,6 +13,8 @@ pub const CAT: &str = "cat";
 static SETTINGS_BUILDING: AtomicBool = AtomicBool::new(false);
 static CALENDAR_BUILDING: AtomicBool = AtomicBool::new(false);
 static CAT_BUILDING: AtomicBool = AtomicBool::new(false);
+// Set by the cat page (fullscreen / cat switched off): moves must not re-show it.
+static CAT_HIDDEN: AtomicBool = AtomicBool::new(false);
 static WAITING_FOR_PAINT: Mutex<Option<HashSet<&'static str>>> = Mutex::new(None);
 
 const PAINT_WAIT: Duration = Duration::from_millis(2500);
@@ -149,12 +151,15 @@ pub fn open(app: &AppHandle, label: &str) {
 pub fn open_cat(app: &AppHandle, x: f64, y: f64) {
     if let Some(win) = app.get_webview_window(CAT) {
         let _ = win.set_position(tauri::LogicalPosition::new(x, y));
-        present(&win);
+        if !CAT_HIDDEN.load(Ordering::SeqCst) {
+            present(&win);
+        }
         return;
     }
     if CAT_BUILDING.swap(true, Ordering::SeqCst) {
         return;
     }
+    CAT_HIDDEN.store(false, Ordering::SeqCst);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let built = WebviewWindowBuilder::new(&app, CAT, WebviewUrl::App("cat.html".into()))
@@ -171,6 +176,14 @@ pub fn open_cat(app: &AppHandle, x: f64, y: f64) {
             .visible(false)
             .build();
         if let Ok(win) = built {
+            // Clicking or dragging the cat must not take focus from the user's app (startDragging still works).
+            if let Ok(hwnd) = win.hwnd() {
+                unsafe {
+                    use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE};
+                    let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as usize;
+                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (ex | WS_EX_NOACTIVATE.0 as usize) as isize);
+                }
+            }
             win.on_window_event(|event| {
                 // Alt+F4 must not strand the saved desktop cat; double-click is the way back.
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -179,12 +192,24 @@ pub fn open_cat(app: &AppHandle, x: f64, y: f64) {
             });
             start_waiting(CAT);
             tokio::time::sleep(PAINT_WAIT).await;
-            if take_waiting(CAT) {
+            if take_waiting(CAT) && !CAT_HIDDEN.load(Ordering::SeqCst) {
                 present(&win);
             }
         }
         CAT_BUILDING.store(false, Ordering::SeqCst);
     });
+}
+
+/// Hidden: also consumes the paint wait so the fallback cannot present it.
+pub fn set_cat_hidden(app: &AppHandle, hidden: bool) {
+    CAT_HIDDEN.store(hidden, Ordering::SeqCst);
+    take_waiting(CAT);
+    let Some(win) = app.get_webview_window(CAT) else { return };
+    if hidden {
+        let _ = win.hide();
+    } else {
+        present(&win);
+    }
 }
 
 pub fn close_cat(app: &AppHandle) {

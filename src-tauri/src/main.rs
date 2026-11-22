@@ -129,6 +129,8 @@ fn main() {
             open_calendar_window,
             cat_to_desktop,
             cat_to_notch,
+            cat_set_hidden,
+            set_cat_dragging,
             open_tray_window,
             open_tray_at_cursor,
             open_tray_from_button,

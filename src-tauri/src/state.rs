@@ -137,6 +137,21 @@ pub static MENU_RECT: Mutex<Option<IntRect>> = Mutex::new(None);
 pub static DOCK_IS_DRAGGING: AtomicBool = AtomicBool::new(false);
 /// A file from a dock stack is being dragged out: our own notch/dock drop targets must not take it.
 pub static OWN_FILE_DRAG: AtomicBool = AtomicBool::new(false);
+/// The notch cat is being dragged out: the notch stays interactive so the drag is not cut off.
+pub static CAT_DRAG: AtomicBool = AtomicBool::new(false);
+
+/// CAT_DRAG, released as soon as the left button is up (a lost pointerup cannot strand it).
+pub fn cat_drag_active() -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+    if !CAT_DRAG.load(std::sync::atomic::Ordering::Relaxed) {
+        return false;
+    }
+    let down = unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 };
+    if !down {
+        CAT_DRAG.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+    down
+}
 pub static ICON_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
 
 pub static INSTALLED_APPS_CACHE: OnceLock<Mutex<Vec<AppInfo>>> = OnceLock::new();

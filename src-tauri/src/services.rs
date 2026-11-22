@@ -2459,7 +2459,7 @@ unsafe fn process_mouse_move(app_handle: &AppHandle, cursor: windows::Win32::Fou
                             scale, dbg_box, is_click_interactive, at_top_edge, MH_LAST_MAIN_IGNORE.load(Ordering::Relaxed),
                         ));
 
-                        let final_ignore = notch_fs || (!is_click_interactive && !MENU_IS_OPEN.load(Ordering::Relaxed));
+                        let final_ignore = notch_fs || (!is_click_interactive && !MENU_IS_OPEN.load(Ordering::Relaxed) && !crate::state::cat_drag_active());
                         let prev_ignore = MH_LAST_MAIN_IGNORE.load(Ordering::Relaxed);
                         let new_ignore = if final_ignore { 1 } else { 0 };
                         if prev_ignore != new_ignore {
@@ -2881,7 +2881,7 @@ fn hit_test_extra_notch_windows(app_handle: &AppHandle, cursor: windows::Win32::
             crate::state::set_i32(crate::state::notch_extra_last_edge_hover(), &label, new_hover);
         }
 
-        let final_ignore = notch_fs || (!is_click_interactive && !MENU_IS_OPEN.load(Ordering::Relaxed));
+        let final_ignore = notch_fs || (!is_click_interactive && !MENU_IS_OPEN.load(Ordering::Relaxed) && !crate::state::cat_drag_active());
         let prev_ignore = crate::state::get_i32(crate::state::notch_extra_last_ignore(), &label, -1);
         let new_ignore = if final_ignore { 1 } else { 0 };
         if prev_ignore != new_ignore {

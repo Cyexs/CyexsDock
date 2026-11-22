@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { catSrc, clickReaction, DIZZY_WINDOW_MS, HEARTS_HOVER_MS, resolveOutfit, type CatPose, type CatReaction, type OutfitId } from "../mascot/mascot";
 import { useCatManifest } from "../mascot/useCatManifest";
 
@@ -60,6 +61,8 @@ export function CatMascot(props: {
     if (!onDragOut || e.button !== 0) return;
     dragging.current = "armed";
     e.currentTarget.setPointerCapture(e.pointerId);
+    // Keeps the notch interactive while the pointer leaves its hit box (backend releases on button up).
+    invoke("set_cat_dragging", { active: true }).catch(() => {});
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (dragging.current !== "armed" || !onDragOut) return;
@@ -69,11 +72,15 @@ export function CatMascot(props: {
     const dy = Math.max(notch.top - e.clientY, 0, e.clientY - notch.bottom);
     if (Math.hypot(dx, dy) <= DRAG_OUT_PX) return;
     dragging.current = "out";
+    invoke("set_cat_dragging", { active: false }).catch(() => {});
     onDragOut(e.screenX, e.screenY);
   };
   const onPointerUp = () => {
     // Keep "out" until the click that follows this release has been swallowed.
-    if (dragging.current === "armed") dragging.current = null;
+    if (dragging.current === "armed") {
+      dragging.current = null;
+      invoke("set_cat_dragging", { active: false }).catch(() => {});
+    }
   };
 
   const onClick = (e: React.MouseEvent) => {
