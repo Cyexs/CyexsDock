@@ -392,6 +392,8 @@ function App() {
   const [dualTime, setDualTime] = useState("");
   const [dualDayShift, setDualDayShift] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [catMenu, setCatMenu] = useState(false);
+  const [catPreview, setCatPreview] = useState<OutfitId | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [scale, setScale] = useState(() => parseFloat(localStorage.getItem("nectar-scale") || "1.0"));
   const [timeFormat24h, setTimeFormat24h] = useState(() => localStorage.getItem("nectar-time-format-24h") === "true");
@@ -632,15 +634,22 @@ function App() {
     }
   }, [isVisible, isHidden, isNotchWindow]);
 
+  // The cat's menu must not outlive the expanded notch.
+  useEffect(() => {
+    if (!isHovered || !isVisible || isHidden) { setCatMenu(false); setCatPreview(null); }
+  }, [isHovered, isVisible, isHidden]);
+
   useEffect(() => {
     let lastSent = "";
     const updateRect = () => {
       if (nectarRef.current && isNotchWindow) {
         const rect = nectarRef.current.getBoundingClientRect();
         const card = tourActive ? document.querySelector('.tour-bar')?.getBoundingClientRect() : undefined;
-        const left = card ? Math.min(rect.left, card.left) : rect.left;
-        const right = card ? Math.max(rect.right, card.right) : rect.right;
-        const bottom = card ? Math.max(rect.bottom, card.bottom) : rect.bottom;
+        // Wardrobe popover hangs below the notch: keep it inside the click-through hit area.
+        const wardrobe = document.querySelector('.cat-wardrobe')?.getBoundingClientRect();
+        const left = Math.min(rect.left, card?.left ?? rect.left, wardrobe?.left ?? rect.left);
+        const right = Math.max(rect.right, card?.right ?? rect.right, wardrobe?.right ?? rect.right);
+        const bottom = Math.max(rect.bottom, card?.bottom ?? rect.bottom, wardrobe?.bottom ?? rect.bottom);
         const next = {
           x: Math.round(left),
           y: Math.round(rect.y),
@@ -666,7 +675,7 @@ function App() {
       observer.disconnect();
       clearInterval(poll);
     };
-  }, [isExpanded, isHidden, windowLabel, scale, tourActive]);
+  }, [isExpanded, isHidden, windowLabel, scale, tourActive, catMenu]);
 
   useEffect(() => {
     if (!windowLabel) return;
@@ -778,8 +787,6 @@ function App() {
   const rememberedModeRef = useRef<"command-center" | "calendar" | null>(null);
   const [settingsVisualizerEnabled, setSettingsVisualizerEnabled] = useState(() => localStorage.getItem("nectar-visualizer-enabled") !== "false");
   const [catSetting, setCatSetting] = useState<OutfitSetting>(() => (localStorage.getItem("nectar-cat-outfit") as OutfitSetting) || "auto");
-  const [catMenu, setCatMenu] = useState(false);
-  const [catPreview, setCatPreview] = useState<OutfitId | null>(null);
   const [catVisible, setCatVisible] = useState(() => localStorage.getItem("nectar-cat-visible") !== "false");
   const [settingsAlbumArtEnabled, setSettingsAlbumArtEnabled] = useState(() => localStorage.getItem("nectar-media-album-art-enabled") !== "false");
   const [settingsAmbienceEnabled, setSettingsAmbienceEnabled] = useState(() => localStorage.getItem("nectar-media-ambience-enabled") !== "false");
@@ -1068,7 +1075,7 @@ function App() {
       "nectar-media-visualizer-enabled": setSettingsVisualizerEnabled,
       "nectar-visualizer-enabled": setSettingsVisualizerEnabled,
       "nectar-cat-visible": (v) => setCatVisible(v !== false && v !== "false"),
-      "nectar-cat-outfit": (v) => { localStorage.setItem("nectar-cat-outfit", String(v)); setCatSetting(String(v) as OutfitSetting); },
+      "nectar-cat-outfit": (v) => { const o = v == null ? "auto" : String(v); localStorage.setItem("nectar-cat-outfit", o); setCatSetting(o as OutfitSetting); },
       "nectar-media-album-art-enabled": setSettingsAlbumArtEnabled,
       "nectar-media-ambience-enabled": setSettingsAmbienceEnabled,
       "nectar-media-compact-glow-enabled": setSettingsCompactGlowEnabled,
