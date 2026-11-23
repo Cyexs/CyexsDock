@@ -668,6 +668,9 @@ function App() {
     window.addEventListener('resize', updateRect);
     const observer = new ResizeObserver(updateRect);
     if (nectarRef.current) observer.observe(nectarRef.current);
+    // The wardrobe hangs outside the notch box: watch it too so it is clickable as soon as it mounts.
+    const wardrobeEl = document.querySelector('.cat-wardrobe');
+    if (wardrobeEl) observer.observe(wardrobeEl);
 
     const poll = setVisibleInterval(updateRect, 500);
 

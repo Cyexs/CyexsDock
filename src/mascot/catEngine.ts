@@ -809,7 +809,7 @@ export class CatEngine {
   /** Purple pointed hat, wide brim, orange band, tip bent over to one side. */
   private drawWitchHat(x: CanvasRenderingContext2D, R: number, flat: number, hs: number, edge: number) {
     const bw = R * 0.74, be = bw * flat;
-    const cw = R * 0.34, H = R * 1.0 * hs;
+    const cw = R * 0.34, H = R * 0.92 * hs; // tip stays inside the canvas during the "finished" hop
     const rim = "rgba(255,255,255,0.28)"; // reads on the black notch and on the black cat
     const brimFill = (front: boolean) => {
       x.beginPath();
@@ -890,7 +890,8 @@ export class CatEngine {
     const side = wt * 1.12 * Math.cos(this.yaw);
     const behind = Math.sin(this.yaw) > 0.2;
     const tassel = () => {
-      x.strokeStyle = "#141414";
+      // Gold cord and a gold-edged black tassel: plain black vanishes on the black notch.
+      x.strokeStyle = "#E3B341";
       x.lineWidth = Math.max(0.8, R * 0.06);
       x.beginPath();
       x.moveTo(0, -H - et * 0.3);
@@ -900,6 +901,8 @@ export class CatEngine {
       x.beginPath();
       x.ellipse(side, -H * 0.3, Math.max(R * 0.07, 0.7), Math.max(R * 0.14, 1.2), 0, 0, Math.PI * 2);
       x.fill();
+      x.lineWidth = Math.max(0.5, R * 0.03);
+      x.stroke();
     };
     if (behind) tassel();
     x.beginPath();
