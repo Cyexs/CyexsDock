@@ -2724,8 +2724,6 @@ img {
     flex: none;
 }
 
-.cat-mascot.pixel { image-rendering: pixelated; }
-
 .agent-dot {
     width: 9px;
     height: 9px;
@@ -3038,4 +3036,3 @@ img.notif-card-icon { transform: scale(1.35); }
 .cat-wardrobe-item:hover,
 .cat-wardrobe-item:focus-visible,
 .cat-wardrobe-item.active { border-color: rgba(255, 255, 255, 0.5); outline: none; }
-.cat-wardrobe-item img { height: 28px; width: auto; }

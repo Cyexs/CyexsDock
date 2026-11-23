@@ -1,6 +1,7 @@
 // Pure logic for the cat mascot: pose, seasonal outfit, click reaction.
 import type { AgentState } from "../components/AgentStatus";
 import { turkishHolidays } from "../localCalendar";
+import type { StateName } from "./catEngine";
 
 export type CatPose = "idle" | "working" | "needs-input" | "done" | "error" | "music" | "sleeping";
 export type CatReaction = "pet" | "angry" | "dizzy" | "hearts";
@@ -48,16 +49,18 @@ export function clickReaction(clickTimes: number[], now: number): CatReaction {
   return n >= 3 ? "dizzy" : n === 2 ? "angry" : "pet";
 }
 
-export type CatManifest = { outfits: Partial<Record<OutfitId, string[]>> };
-export type CatClip = CatPose | CatReaction | "idle-left" | "idle-right" | "idle-scratch";
+const ENGINE_STATE: Record<CatPose, StateName> = {
+  idle: "idle",
+  working: "working",
+  "needs-input": "approval",
+  done: "finished",
+  error: "error",
+  sleeping: "sleeping",
+  music: "idle", // engine bobs the head while music plays
+};
 
-const POSES: string[] = ["idle", "working", "needs-input", "done", "error", "music", "sleeping"];
-
-// 3D clip for the outfit, else the no-outfit clip, else the pixel SVG (non-pose clips use idle).
-export function catSrc(m: CatManifest, outfit: OutfitId, clip: CatClip, sit = false): string {
-  if (m.outfits[outfit]?.includes(clip)) return `/cat/${outfit}/${clip}.webp`;
-  if (m.outfits.none?.includes(clip)) return `/cat/none/${clip}.webp`;
-  return `/mascot/${POSES.includes(clip) ? clip : "idle"}${sit ? "-sit" : ""}.svg`;
+export function catEngineState(pose: CatPose): StateName {
+  return ENGINE_STATE[pose];
 }
 
 type Rect = { x: number; y: number; w: number; h: number };

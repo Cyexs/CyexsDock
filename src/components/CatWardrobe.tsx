@@ -1,10 +1,9 @@
 import { useEffect } from "react";
-import { catSrc, OUTFITS, type OutfitId } from "../mascot/mascot";
-import { useCatManifest } from "../mascot/useCatManifest";
+import { OUTFITS, type OutfitId } from "../mascot/mascot";
 
 export type OutfitSetting = "auto" | OutfitId;
 
-// Right-click popover: "Auto" + one thumbnail per outfit. Hover previews, click saves.
+// Right-click popover: "Auto" + one entry per outfit (text until outfits are drawn). Hover previews, click saves.
 export function CatWardrobe(props: {
   value: OutfitSetting;
   t: (key: string) => string;
@@ -13,7 +12,6 @@ export function CatWardrobe(props: {
   onClose: () => void;
 }) {
   const { value, t, onPreview, onPick, onClose } = props;
-  const manifest = useCatManifest();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -40,7 +38,7 @@ export function CatWardrobe(props: {
             onFocus={() => o !== "auto" && onPreview(o)}
             onClick={() => onPick(o)}
           >
-            {o === "auto" ? <span>{label}</span> : <img src={catSrc(manifest, o, "idle")} alt="" draggable={false} />}
+            <span>{label}</span>
           </button>
         );
       })}

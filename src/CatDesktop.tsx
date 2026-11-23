@@ -159,14 +159,15 @@ export default function CatDesktop() {
         invoke("cat_to_notch").catch(console.error);
       }}
     >
-      <CatMascot
+      {/* Unmounted while hidden so its animation loop stops. */}
+      {visible && <CatMascot
         pose={catPose({ agent: mirror.agent, music: mirror.music, idleMs })}
         outfit={preview ?? catOutfit(setting)}
         size={120}
         interactive
         look={look}
         onContextMenu={(e) => { e.preventDefault(); setMenu(true); }}
-      />
+      />}
       {menu && (
         <CatWardrobe
           value={setting}

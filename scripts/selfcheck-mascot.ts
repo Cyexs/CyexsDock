@@ -1,5 +1,5 @@
 // Self-check for the cat mascot logic: bun scripts/selfcheck-mascot.ts
-import { autoOutfit, catPose, catSrc, clampToScreen, clickReaction, resolveOutfit } from "../src/mascot/mascot.ts";
+import { autoOutfit, catEngineState, catPose, clampToScreen, clickReaction, resolveOutfit } from "../src/mascot/mascot.ts";
 
 const eq = (a: unknown, b: unknown, m: string) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) {
@@ -28,12 +28,11 @@ eq(clickReaction([0, 2000, 4000], 4000), "pet", "3 slow clicks");
 eq(clickReaction([1000], 1000), "pet", "1 click");
 eq(clickReaction([0, 700], 700), "angry", "2 fast clicks");
 eq(clickReaction([0, 2000], 2000), "pet", "2 slow clicks");
-const m = { outfits: { none: ["idle", "pet"], santa: ["idle"] } };
-eq(catSrc(m, "santa", "idle"), "/cat/santa/idle.webp", "outfit clip");
-eq(catSrc(m, "santa", "pet"), "/cat/none/pet.webp", "fallback to no outfit");
-eq(catSrc(m, "witch", "music"), "/mascot/music.svg", "fallback to pixel");
-eq(catSrc(m, "witch", "hearts"), "/mascot/idle.svg", "reaction pixel fallback");
-eq(catSrc({ outfits: {} }, "none", "working", true), "/mascot/working-sit.svg", "sit variant");
+eq(
+  (["idle", "working", "needs-input", "done", "error", "sleeping", "music"] as const).map(catEngineState),
+  ["idle", "working", "approval", "finished", "error", "sleeping", "idle"],
+  "pose to engine state",
+);
 const scr = [{ x: 0, y: 0, w: 1920, h: 1080 }];
 eq(clampToScreen({ x: 100, y: 100 }, scr, { w: 140, h: 160 }), { x: 100, y: 100 }, "on screen");
 eq(clampToScreen({ x: 3000, y: 100 }, scr, { w: 140, h: 160 }), { x: 40, y: 40 }, "monitor unplugged");
