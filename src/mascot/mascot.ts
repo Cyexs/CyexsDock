@@ -69,18 +69,3 @@ const ENGINE_STATE: Record<CatPose, StateName> = {
 export function catEngineState(pose: CatPose): StateName {
   return ENGINE_STATE[pose];
 }
-
-type Rect = { x: number; y: number; w: number; h: number };
-
-// Saved desktop spot is kept if the cat's centre is on some screen; else (monitor gone) top-left of the first + 40.
-export function clampToScreen(
-  p: { x: number; y: number },
-  screens: Rect[],
-  size: { w: number; h: number },
-): { x: number; y: number } {
-  const cx = p.x + size.w / 2;
-  const cy = p.y + size.h / 2;
-  if (screens.some((s) => cx >= s.x && cx < s.x + s.w && cy >= s.y && cy < s.y + s.h)) return p;
-  const first = screens[0] ?? { x: 0, y: 0 };
-  return { x: first.x + 40, y: first.y + 40 };
-}

@@ -127,10 +127,6 @@ fn main() {
             open_settings_window,
             on_demand_windows::on_demand_window_ready,
             open_calendar_window,
-            cat_to_desktop,
-            cat_to_notch,
-            cat_set_hidden,
-            set_cat_dragging,
             open_tray_window,
             open_tray_at_cursor,
             open_tray_from_button,
@@ -436,7 +432,6 @@ fn main() {
                             }
                             if let Some(w) = ah.get_webview_window("settings") { let _ = w.destroy(); }
                             if let Some(w) = ah.get_webview_window("calendar") { let _ = w.destroy(); }
-                            if let Some(w) = ah.get_webview_window("cat") { let _ = w.destroy(); }
                             std::env::set_var("NECTAR_RESTARTING", "1");
                             close_single_instance_handles();
 

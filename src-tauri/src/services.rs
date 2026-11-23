@@ -1428,7 +1428,6 @@ pub fn setup_system_worker(app_handle: AppHandle) -> Sender<SystemCommand> {
                 crate::state::set_flag(crate::state::notch_fullscreen(), "main", fullscreen_on_notch);
                 if Some(fullscreen_on_notch) != last_notch_fullscreen || last_emit.elapsed() >= Duration::from_secs(3) {
                     let _ = handle_visibility.emit_to("main", "notch-fullscreen", fullscreen_on_notch);
-                    let _ = handle_visibility.emit_to(crate::on_demand_windows::CAT, "notch-fullscreen", current_is_fs && fg_on(crate::on_demand_windows::CAT));
                     last_notch_fullscreen = Some(fullscreen_on_notch);
                 }
 
@@ -2462,7 +2461,7 @@ unsafe fn process_mouse_move(app_handle: &AppHandle, cursor: windows::Win32::Fou
                             scale, dbg_box, is_click_interactive, at_top_edge, MH_LAST_MAIN_IGNORE.load(Ordering::Relaxed),
                         ));
 
-                        let final_ignore = notch_fs || (!is_click_interactive && !MENU_IS_OPEN.load(Ordering::Relaxed) && !crate::state::cat_drag_active());
+                        let final_ignore = notch_fs || (!is_click_interactive && !MENU_IS_OPEN.load(Ordering::Relaxed));
                         let prev_ignore = MH_LAST_MAIN_IGNORE.load(Ordering::Relaxed);
                         let new_ignore = if final_ignore { 1 } else { 0 };
                         if prev_ignore != new_ignore {
@@ -2884,7 +2883,7 @@ fn hit_test_extra_notch_windows(app_handle: &AppHandle, cursor: windows::Win32::
             crate::state::set_i32(crate::state::notch_extra_last_edge_hover(), &label, new_hover);
         }
 
-        let final_ignore = notch_fs || (!is_click_interactive && !MENU_IS_OPEN.load(Ordering::Relaxed) && !crate::state::cat_drag_active());
+        let final_ignore = notch_fs || (!is_click_interactive && !MENU_IS_OPEN.load(Ordering::Relaxed));
         let prev_ignore = crate::state::get_i32(crate::state::notch_extra_last_ignore(), &label, -1);
         let new_ignore = if final_ignore { 1 } else { 0 };
         if prev_ignore != new_ignore {

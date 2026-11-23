@@ -41,7 +41,6 @@ export default defineConfig(async () => ({
         settings: "settings.html",
         calendar: "calendar.html",
         dock: "dock.html",
-        cat: "cat.html",
       },
     },
   },

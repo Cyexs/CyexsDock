@@ -1,6 +1,6 @@
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { useEffect, useState, useCallback, useRef, useMemo, memo } from "react";
-import { emitTo, listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { UpdateCheckResult } from "./updater";
@@ -793,14 +793,6 @@ function App() {
   const [catSetting, setCatSetting] = useState<OutfitSetting>(() => (localStorage.getItem("nectar-cat-outfit") as OutfitSetting) || "auto");
   const [catColor, setCatColor] = useState(() => resolveCatColor(localStorage.getItem("nectar-cat-color")));
   const [catVisible, setCatVisible] = useState(() => localStorage.getItem("nectar-cat-visible") !== "false");
-  const [catOnDesktop, setCatOnDesktop] = useState(false);
-  // Desktop cat (cat.html) owns nectar-cat-desktop; useSettingsSync drops the null that brings it back.
-  useEffect(() => {
-    const un = listen<{ key: string; value: unknown }>("settings-changed", (e) => {
-      if (e.payload.key === "nectar-cat-desktop") setCatOnDesktop(e.payload.value != null);
-    });
-    return () => { un.then((f) => f()); };
-  }, []);
   const [settingsAlbumArtEnabled, setSettingsAlbumArtEnabled] = useState(() => localStorage.getItem("nectar-media-album-art-enabled") !== "false");
   const [settingsAmbienceEnabled, setSettingsAmbienceEnabled] = useState(() => localStorage.getItem("nectar-media-ambience-enabled") !== "false");
   const [settingsCompactGlowEnabled, setSettingsCompactGlowEnabled] = useState(() => localStorage.getItem("nectar-media-compact-glow-enabled") !== "false");
@@ -921,10 +913,6 @@ function App() {
       const viz = getVal("nectar-media-visualizer-enabled") ?? getVal("nectar-visualizer-enabled", "true");
       setSettingsVisualizerEnabled(viz !== "false");
       setCatVisible(getVal("nectar-cat-visible", "true") !== "false");
-      const catDesk = settings["nectar-cat-desktop"] as { x: number; y: number } | null | undefined;
-      setCatOnDesktop(catDesk != null);
-      // Cat switched off: do not build the desktop window at all.
-      if (catDesk && windowLabel === 'main' && getVal("nectar-cat-visible", "true") !== "false") invoke("cat_to_desktop", { x: catDesk.x, y: catDesk.y }).catch(() => {});
       setSettingsAlbumArtEnabled(getVal("nectar-media-album-art-enabled", "true") !== "false");
       setSettingsAmbienceEnabled(getVal("nectar-media-ambience-enabled", "true") !== "false");
       setSettingsCompactGlowEnabled(getVal("nectar-media-compact-glow-enabled", "true") !== "false");
@@ -2130,29 +2118,6 @@ function App() {
   // Music mode shows any time we have media info (playing or paused) and music mode setting is enabled
   const isMusicMode = mediaInfo.has_media && nectarMode === 'music' && settingsMusicModeEnabled;
 
-  // Desktop cat mirrors the notch's agent + music state (it has no agent/media listeners of its own).
-  const catAgent = agentActivity?.state ?? null;
-  const catMusic = isMusicMode && !settingsVisualizerEnabled;
-  useEffect(() => {
-    if (windowLabel !== 'main' || !catOnDesktop) return;
-    const send = () => { emitTo("cat", "cat-pose", { agent: catAgent, music: catMusic }).catch(() => {}); };
-    send();
-    const un = listen("cat-pose-request", send);
-    return () => { un.then((f) => f()); };
-  }, [windowLabel, catOnDesktop, catAgent, catMusic]);
-
-  // Cat switched back on while it lives on the desktop: startup skipped the window, build it now.
-  const catVisibleSeen = useRef(false);
-  useEffect(() => {
-    if (!catVisibleSeen.current) { catVisibleSeen.current = true; return; }
-    if (windowLabel !== 'main' || !catVisible || !catOnDesktop) return;
-    invoke<Record<string, unknown>>("load_settings").then((saved) => {
-      const desk = saved["nectar-cat-desktop"] as { x: number; y: number } | null | undefined;
-      if (desk) invoke("cat_to_desktop", { x: desk.x, y: desk.y }).catch(() => {});
-    }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on the toggle, not on drag-out
-  }, [catVisible]);
-
   // Cat idle time since the last hover; one timer flips it to "sleeping" after SLEEP_AFTER_MS.
   const [catIdleMs, setCatIdleMs] = useState(0);
   useEffect(() => {
@@ -2642,7 +2607,7 @@ function App() {
                               ) : (
                                 // One fragment so the cat stays mounted when the hover widgets appear beside it.
                                 <>
-                                  {catVisible && !catOnDesktop && isVisible && !isHidden && (
+                                  {catVisible && isVisible && !isHidden && (
                                     <span style={{ position: 'relative', display: 'flex' }}>
                                       <CatMascot
                                         pose={catPose({ agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs: catIdleMs })}
@@ -2651,12 +2616,6 @@ function App() {
                                         size={30}
                                         interactive
                                         onContextMenu={(e) => { e.preventDefault(); setCatMenu(true); }}
-                                        onDragOut={(x, y) => {
-                                          setCatOnDesktop(true);
-                                          setCatMenu(false);
-                                          // Window is 140x160: put the cat under the pointer.
-                                          invoke("cat_to_desktop", { x: x - 70, y: y - 120 }).catch(console.error);
-                                        }}
                                       />
                                       {catMenu && (
                                         <CatWardrobe

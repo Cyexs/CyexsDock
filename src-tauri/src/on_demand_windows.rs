@@ -8,13 +8,9 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder}
 
 pub const SETTINGS: &str = "settings";
 pub const CALENDAR: &str = "calendar";
-pub const CAT: &str = "cat";
 
 static SETTINGS_BUILDING: AtomicBool = AtomicBool::new(false);
 static CALENDAR_BUILDING: AtomicBool = AtomicBool::new(false);
-static CAT_BUILDING: AtomicBool = AtomicBool::new(false);
-// Set by the cat page (fullscreen / cat switched off): moves must not re-show it.
-static CAT_HIDDEN: AtomicBool = AtomicBool::new(false);
 static WAITING_FOR_PAINT: Mutex<Option<HashSet<&'static str>>> = Mutex::new(None);
 
 const PAINT_WAIT: Duration = Duration::from_millis(2500);
@@ -147,90 +143,9 @@ pub fn open(app: &AppHandle, label: &str) {
     });
 }
 
-// Desktop cat: small, transparent, topmost, off the taskbar, never steals focus. Built only when dragged out.
-pub fn open_cat(app: &AppHandle, x: f64, y: f64) {
-    if let Some(win) = app.get_webview_window(CAT) {
-        let _ = win.set_position(tauri::LogicalPosition::new(x, y));
-        if !CAT_HIDDEN.load(Ordering::SeqCst) {
-            present(&win);
-        }
-        return;
-    }
-    if CAT_BUILDING.swap(true, Ordering::SeqCst) {
-        return;
-    }
-    CAT_HIDDEN.store(false, Ordering::SeqCst);
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let built = WebviewWindowBuilder::new(&app, CAT, WebviewUrl::App("cat.html".into()))
-            .title("CyexsDock Cat")
-            .inner_size(140.0, 160.0)
-            .position(x, y)
-            .decorations(false)
-            .transparent(true)
-            .resizable(false)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .shadow(false)
-            .focused(false)
-            .visible(false)
-            .build();
-        if let Ok(win) = built {
-            // Clicking or dragging the cat must not take focus from the user's app (startDragging still works).
-            if let Ok(hwnd) = win.hwnd() {
-                unsafe {
-                    use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE};
-                    let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as usize;
-                    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (ex | WS_EX_NOACTIVATE.0 as usize) as isize);
-                }
-            }
-            win.on_window_event(|event| {
-                // Alt+F4 must not strand the saved desktop cat; double-click is the way back.
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                }
-            });
-            start_waiting(CAT);
-            tokio::time::sleep(PAINT_WAIT).await;
-            if take_waiting(CAT) && !CAT_HIDDEN.load(Ordering::SeqCst) {
-                present(&win);
-            }
-        }
-        CAT_BUILDING.store(false, Ordering::SeqCst);
-    });
-}
-
-/// Hidden: also consumes the paint wait so the fallback cannot present it.
-pub fn set_cat_hidden(app: &AppHandle, hidden: bool) {
-    CAT_HIDDEN.store(hidden, Ordering::SeqCst);
-    take_waiting(CAT);
-    let Some(win) = app.get_webview_window(CAT) else { return };
-    if hidden {
-        let _ = win.hide();
-    } else {
-        present(&win);
-    }
-}
-
-pub fn close_cat(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window(CAT) {
-        let _ = win.destroy();
-        crate::memory_saver::trim_soon();
-    }
-}
-
 fn present(win: &WebviewWindow) {
     set_suspended(win, false);
     set_memory_level(win, false);
-    if win.label() == CAT {
-        if let Ok(hwnd) = win.hwnd() {
-            unsafe {
-                use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
-                let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-            }
-        }
-        return;
-    }
     let _ = win.show();
     let _ = win.unminimize();
     let _ = win.set_focus();
