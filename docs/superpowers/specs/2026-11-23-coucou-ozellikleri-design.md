@@ -45,6 +45,16 @@ Bugün kedi yalnızca AI ajan modu açıkken ve bir ajan çalışırken görün�
 
 ---
 
+### Karar değişikliği (2026-11-23 sabah)
+
+Kullanıcı 3D (Blender) kediyi ve piksel kediyi beğenmedi. Yeni karar, kullanıcı onaylı deneme sayfasından (`.superpowers/spike-cat/`):
+- Kedi **kodla çizilir** (Canvas 2D), Coucou'nun MIT lisanslı animasyon motoru üzerine. Mochi karakteri (görünüş, ifadeler) Coucou'nun lisansı dışında; bizim kedi kendi kafası, kulakları, logodaki yüzüyle çizilir. Coucou'nun görselleri, sesleri, kıyafet çizimleri kullanılmaz. MIT telif notu kodda kalır.
+- **Yalnızca kafa** (gövde ve kuyruk yok). Yumuşak, sahte-3D gölgeli; kafa sağa sola döner ve eğilir.
+- **Renkler:** beyaz, siyah, sarı, kırçıllı, gri. Gardıroptan seçilir.
+- Kıyafetler (cadı şapkası, yılbaşı şapkası, bayramlık) kodla, bize özgü çizilir ve kafayla birlikte döner.
+- 3D kedi, Blender işi ve WebP animasyon dosyaları iptal. Piksel SVG'ler artık kedi için kullanılmaz.
+- Masaüstü kedisinde "imleci gözüyle izleme" motorun bakış yönüyle yapılır.
+
 ## 2. Çentikten AI sohbet (proje)
 
 ### Hedefler

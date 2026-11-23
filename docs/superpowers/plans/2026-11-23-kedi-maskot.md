@@ -239,3 +239,39 @@ Clips per outfit (14 × 4 outfits = 56): `idle, idle-left, idle-right, working, 
 - [ ] `npm run build` → 0; `cd src-tauri && cargo check` → 0 errors.
 - [ ] Measure idle RAM/CPU with `scripts/measure-ram.ps1` before/after; cat must not raise idle CPU noticeably.
 - [ ] Release follows the existing steps (memory "CyexsDock gotchas"); only when the user asks.
+
+
+---
+
+## Revision 2026-11-23 (morning): engine-drawn cat replaces Tasks 6-7
+
+User rejected the Blender cat and the pixel cat and approved the spike in `.superpowers/spike-cat/` (Canvas-2D cat head on Coucou's MIT engine, 5 colours, 11 reactions). Tasks 6-7 are cancelled; `art/cat/` and the WebP asset pipeline are removed. Global constraints above still apply except the 3D/WebP lines. Additional constraints:
+- Coucou engine code is MIT: keep its copyright header. Do not copy Coucou images, sounds, or outfit drawings; the cat must not look like Mochi.
+- Canvas animation runs only while the canvas is visible (stop the rAF loop when hidden/unmounted) and is capped at 30 fps; idle CPU must stay negligible.
+- Colour setting key `nectar-cat-color`: `"white" | "black" | "ginger" | "tabby" | "grey"`, default `"white"`, in the settings sync map.
+
+### Task 8: Engine cat replaces image cat
+
+**Files:**
+- Create: `src/mascot/catEngine.ts` (from `.superpowers/spike-cat/src/cat-engine.ts`, cleaned up; MIT header kept)
+- Modify: `src/components/CatMascot.tsx` (render a `<canvas>` driven by `CatEngine` instead of `<img>`; same props API), `src/CatDesktop.tsx` (look direction → engine look/yaw toward the cursor instead of `idle-left/right` clips), `src/mascot/mascot.ts` (remove `catSrc`/`CatManifest`/clip type if unused)
+- Delete: `src/mascot/useCatManifest.ts`, `public/cat/`, `art/cat/`, related selfchecks
+- Test: `scripts/selfcheck-mascot.ts` (drop catSrc checks; add a check for the pose→engine-state mapping function)
+
+**Interfaces:**
+- Produces: `catEngineState(pose: CatPose): StateName` (pure, self-checked), `CatEngine` with `setState`, `react("pet"|"angry"|"hearts"|"scratch")`, `update(dt)`, `draw(ctx, cx, cy, size)`, palette setter.
+- Mapping: idle→idle, working→working, needs-input→approval, done→finished, error→error, sleeping→sleeping, music→idle with a music badge or gentle bob; reactions: pet/angry/hearts → `react`, dizzy → state `dizzy` for ~1.2 s then back, idle-scratch → `react("scratch")`.
+- Canvas: devicePixelRatio-sharp; rAF loop per component, paused when the component is hidden or unmounted (`document.hidden`, notch hidden, `!isVisible`); cap 30 fps.
+
+- [ ] Port engine, wire CatMascot + CatDesktop, remove dead asset code.
+- [ ] `bun scripts/selfcheck-mascot.ts`, tsc, vite build, `cd src-tauri && cargo check` all pass.
+- [ ] Commit `feat(cat): engine-drawn cat replaces image cat`.
+
+### Task 9: Colours and our own outfits
+
+**Files:** `src/mascot/catEngine.ts` (outfit drawing that follows head yaw/pitch), `src/components/CatWardrobe.tsx` (add a colour row: 5 swatches, hover previews, click saves `nectar-cat-color`), `src/App.tsx` + `src/CatDesktop.tsx` (read colour, sync map), locales (tr/en real; ar/de/es/fr translated).
+
+- Outfits drawn in code, our own design: witch hat (purple, October), Santa hat (red with white trim, December), bayramlık (a small red fez with a tassel). `none` = no outfit. Each outfit must read at 26 px and turn with the head.
+- Colour names tr: Beyaz, Siyah, Sarı, Kırçıllı, Gri.
+
+- [ ] Implement; checks as Task 8; commit `feat(cat): colours and outfits`.
