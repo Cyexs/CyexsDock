@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { catEngineState, clickReaction, DIZZY_WINDOW_MS, HEARTS_HOVER_MS, resolveOutfit, type CatPose, type CatReaction, type OutfitId } from "../mascot/mascot";
+import { catEngineState, clickReaction, DIZZY_WINDOW_MS, HEARTS_HOVER_MS, resolveCatColor, resolveOutfit, type CatColor, type CatPose, type CatReaction, type OutfitId } from "../mascot/mascot";
 import { CatEngine, PALETTES } from "../mascot/catEngine";
 
 const REACTION_MS = 1200;
@@ -20,9 +20,13 @@ export function catOutfit(saved?: string): OutfitId {
   return outfitCache.value;
 }
 
+/** Saved colour, for cats outside the notch's state (agent badge and panel). */
+export const catColor = () => resolveCatColor(localStorage.getItem("nectar-cat-color"));
+
 export function CatMascot(props: {
   pose: CatPose;
   outfit: OutfitId;
+  color: CatColor;
   sit?: boolean;
   size: number;
   interactive?: boolean;
@@ -30,8 +34,8 @@ export function CatMascot(props: {
   onDragOut?: (screenX: number, screenY: number) => void; // notch only: drag the cat onto the desktop
   look?: "left" | "center" | "right"; // desktop cat looks at the cursor
 }) {
-  // outfit/sit are not drawn yet (outfits come with the drawn wardrobe).
-  const { pose, size, onContextMenu, onDragOut, look } = props;
+  // sit is not drawn (the engine cat is a head only).
+  const { pose, outfit, color, size, onContextMenu, onDragOut, look } = props;
   // Agent poses always win: reactions only while idle, sleeping or listening to music.
   const interactive = props.interactive && (pose === "idle" || pose === "sleeping" || pose === "music");
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -164,6 +168,12 @@ export function CatMascot(props: {
   useEffect(() => {
     engine.current!.gaze = GAZE[look ?? "center"];
   }, [look]);
+  useEffect(() => {
+    engine.current!.outfit = outfit;
+  }, [outfit]);
+  useEffect(() => {
+    engine.current!.pal = PALETTES[color];
+  }, [color]);
 
   return (
     <canvas

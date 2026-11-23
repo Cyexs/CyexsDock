@@ -7,7 +7,7 @@ import { CatMascot, catOutfit } from "./components/CatMascot";
 import { CatWardrobe, type OutfitSetting } from "./components/CatWardrobe";
 import { useT } from "./i18n";
 import type { AgentState } from "./components/AgentStatus";
-import { catPose, clampToScreen, SLEEP_AFTER_MS, type OutfitId } from "./mascot/mascot";
+import { catPose, clampToScreen, resolveCatColor, SLEEP_AFTER_MS, type CatColor, type OutfitId } from "./mascot/mascot";
 
 const SIZE = { w: 140, h: 160 };
 const POLL_MS = 100; // fast enough that a click right after reaching the cat lands on it
@@ -24,6 +24,8 @@ export default function CatDesktop() {
   const t = useT();
   const [setting, setSetting] = useState<OutfitSetting>(() => (localStorage.getItem("nectar-cat-outfit") as OutfitSetting) || "auto");
   const [preview, setPreview] = useState<OutfitId | null>(null);
+  const [color, setColor] = useState(() => resolveCatColor(localStorage.getItem("nectar-cat-color")));
+  const [colorPreview, setColorPreview] = useState<CatColor | null>(null);
   const [menu, setMenu] = useState(false);
   const [look, setLook] = useState<"left" | "center" | "right">("center");
   const [fullscreen, setFullscreen] = useState(false);
@@ -84,6 +86,7 @@ export default function CatDesktop() {
     const unSet = listen<{ key: string; value: unknown }>("settings-changed", (e) => {
       const { key, value } = e.payload;
       if (key === "nectar-cat-outfit") setSetting((value == null ? "auto" : String(value)) as OutfitSetting);
+      if (key === "nectar-cat-color") setColor(resolveCatColor(value));
       if (key === "nectar-cat-visible") setCatVisible(value !== false && value !== "false");
     });
     return () => {
@@ -163,6 +166,7 @@ export default function CatDesktop() {
       {visible && <CatMascot
         pose={catPose({ agent: mirror.agent, music: mirror.music, idleMs })}
         outfit={preview ?? catOutfit(setting)}
+        color={colorPreview ?? color}
         size={120}
         interactive
         look={look}
@@ -171,15 +175,23 @@ export default function CatDesktop() {
       {menu && (
         <CatWardrobe
           value={setting}
+          color={color}
           t={t}
           onPreview={setPreview}
-          onClose={() => { setMenu(false); setPreview(null); }}
+          onPreviewColor={setColorPreview}
+          onPickColor={(c) => {
+            localStorage.setItem("nectar-cat-color", c);
+            invoke("save_setting", { key: "nectar-cat-color", value: c }).catch(console.error);
+            setColor(c);
+          }}
+          onClose={() => { setMenu(false); setPreview(null); setColorPreview(null); }}
           onPick={(v) => {
             localStorage.setItem("nectar-cat-outfit", v);
             invoke("save_setting", { key: "nectar-cat-outfit", value: v }).catch(console.error);
             setSetting(v);
             setMenu(false);
             setPreview(null);
+            setColorPreview(null);
           }}
         />
       )}

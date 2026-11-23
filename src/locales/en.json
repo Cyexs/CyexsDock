@@ -754,5 +754,11 @@
   "cat.outfit.none": "No outfit",
   "cat.outfit.witch": "Witch hat",
   "cat.outfit.santa": "Santa hat",
-  "cat.outfit.bayram": "Festive outfit"
+  "cat.outfit.bayram": "Festive outfit",
+  "cat.color.label": "Colour",
+  "cat.color.white": "White",
+  "cat.color.black": "Black",
+  "cat.color.ginger": "Ginger",
+  "cat.color.tabby": "Tabby",
+  "cat.color.grey": "Grey"
 }

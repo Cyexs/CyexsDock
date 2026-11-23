@@ -748,5 +748,11 @@
   "cat.outfit.none": "Sin atuendo",
   "cat.outfit.witch": "Sombrero de bruja",
   "cat.outfit.santa": "Gorro de Papá Noel",
-  "cat.outfit.bayram": "Ropa de fiesta"
+  "cat.outfit.bayram": "Ropa de fiesta",
+  "cat.color.label": "Color",
+  "cat.color.white": "Blanco",
+  "cat.color.black": "Negro",
+  "cat.color.ginger": "Naranja",
+  "cat.color.tabby": "Atigrado",
+  "cat.color.grey": "Gris"
 }

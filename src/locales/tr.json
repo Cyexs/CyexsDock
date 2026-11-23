@@ -748,5 +748,11 @@
   "cat.outfit.none": "Kıyafetsiz",
   "cat.outfit.witch": "Cadı şapkası",
   "cat.outfit.santa": "Yılbaşı şapkası",
-  "cat.outfit.bayram": "Bayramlık"
+  "cat.outfit.bayram": "Bayramlık",
+  "cat.color.label": "Renk",
+  "cat.color.white": "Beyaz",
+  "cat.color.black": "Siyah",
+  "cat.color.ginger": "Sarı",
+  "cat.color.tabby": "Kırçıllı",
+  "cat.color.grey": "Gri"
 }

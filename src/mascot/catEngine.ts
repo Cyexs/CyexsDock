@@ -65,6 +65,7 @@ interface Particle {
   age: number; life: number; rot: number; size: number;
 }
 
+export type OutfitName = "none" | "witch" | "santa" | "bayram";
 export type StateName = "idle" | "working" | "approval" | "error" | "finished" | "sleeping" | "dizzy";
 
 interface StateCfg {
@@ -96,6 +97,8 @@ const EYE_SP = 0.44;
 const EYE_P = -0.02;
 const HEAD_RX = 1.1;
 const HEAD_RY = 0.9;
+/** Hats sit at this pitch offset on the head "sphere" (the crown, just in front of the ear line). */
+const CROWN = 1.15;
 /** Cat height (ear tip to chin) in units of R. */
 export const CAT_H = 2.38;
 
@@ -189,6 +192,8 @@ export class CatEngine {
   gaze: number | null = null;
   /** Gentle head bob while music plays (state stays idle). */
   music = false;
+  /** Hat drawn on the crown (our own designs). */
+  outfit: OutfitName = "none";
 
   tgYaw = 0; tgPitch = 0; tgTilt = 0; tgSy = 1; tgSx = 1; tgEs = 1;
   col: RGB = C.idle; colT: RGB = C.idle;
@@ -462,6 +467,8 @@ export class CatEngine {
     this.drawMouth(x, R, rx, ry);
     x.restore();
 
+    // After the head so the hat covers the inner ear bases; the ears still show beside it.
+    this.drawOutfit(x, R, rx, ry);
     if (this.paw > 0.01) this.drawPaw(x, R);
     x.restore();
 
@@ -774,6 +781,144 @@ export class CatEngine {
       x.fill();
     }
     x.restore();
+  }
+
+  /**
+   * Hat on the crown. It stands on the head's surface normal, so it leans with yaw
+   * and pitch; tilt, roll and squash come from the head transform it is drawn in.
+   */
+  private drawOutfit(x: CanvasRenderingContext2D, R: number, rx: number, ry: number) {
+    if (this.outfit === "none") return;
+    const a = this.proj(0, CROWN, rx, ry);
+    // How much the hat's axis points at us: brims flatten to ellipses, heights shorten.
+    const z = Math.cos(this.yaw) * Math.cos(CROWN + this.pitch);
+    const flat = clamp(Math.abs(z), 0.14, 0.6);
+    const hs = Math.sqrt(1 - clamp(z * z, 0, 0.75));
+    const edge = Math.max(0.6, R * 0.035);
+    x.save();
+    x.translate(a.x, a.y);
+    x.rotate(Math.atan2(a.x, -a.y));
+    x.lineJoin = "round";
+    x.lineCap = "round";
+    if (this.outfit === "witch") this.drawWitchHat(x, R, flat, hs, edge);
+    else if (this.outfit === "santa") this.drawSantaHat(x, R, flat, hs);
+    else this.drawFez(x, R, flat, hs);
+    x.restore();
+  }
+
+  /** Purple pointed hat, wide brim, orange band, tip bent over to one side. */
+  private drawWitchHat(x: CanvasRenderingContext2D, R: number, flat: number, hs: number, edge: number) {
+    const bw = R * 0.74, be = bw * flat;
+    const cw = R * 0.34, H = R * 1.0 * hs;
+    const rim = "rgba(255,255,255,0.28)"; // reads on the black notch and on the black cat
+    const brimFill = (front: boolean) => {
+      x.beginPath();
+      if (front) { x.ellipse(0, 0, bw, be, 0, 0, Math.PI); x.closePath(); } else x.ellipse(0, 0, bw, be, 0, 0, Math.PI * 2);
+      x.fillStyle = "#4E2491";
+      x.fill();
+    };
+    brimFill(false);
+    x.strokeStyle = rim; x.lineWidth = edge;
+    x.stroke();
+    const cone = new Path2D();
+    cone.moveTo(-cw, 0);
+    cone.quadraticCurveTo(-cw * 0.35, -H * 0.55, -cw * 0.05, -H * 0.9);
+    cone.quadraticCurveTo(cw * 0.3, -H * 1.06, cw * 0.95, -H * 0.9);
+    cone.quadraticCurveTo(cw * 0.3, -H * 0.8, cw * 0.32, -H * 0.62);
+    cone.quadraticCurveTo(cw * 0.45, -H * 0.25, cw, 0);
+    cone.closePath();
+    const g = x.createLinearGradient(cw, -H, -cw, 0);
+    g.addColorStop(0, "#9A62E6");
+    g.addColorStop(1, "#5A2AA3");
+    x.fillStyle = g;
+    x.fill(cone);
+    x.save();
+    x.clip(cone);
+    x.fillStyle = "#F29A2E";
+    x.fillRect(-cw * 1.2, -H * 0.27, cw * 2.4, H * 0.14);
+    x.restore();
+    x.strokeStyle = rim;
+    x.stroke(cone);
+    brimFill(true); // the brim's near half is in front of the cone
+    x.beginPath();
+    x.ellipse(0, 0, bw, be, 0, 0, Math.PI);
+    x.stroke();
+  }
+
+  /** Red floppy hat with a fluffy white band and a pompom on the drooping tip. */
+  private drawSantaHat(x: CanvasRenderingContext2D, R: number, flat: number, hs: number) {
+    const bw = R * 0.5, be = bw * flat;
+    const H = R * 0.95 * hs;
+    const tip = { x: R * 0.6 * Math.cos(this.yaw), y: -H * 0.6 };
+    x.beginPath();
+    x.moveTo(-bw * 0.9, 0);
+    x.quadraticCurveTo(-bw * 0.55, -H * 1.08, tip.x, tip.y);
+    x.quadraticCurveTo(bw * 0.25, -H * 0.55, bw * 0.9, 0);
+    x.closePath();
+    const g = x.createLinearGradient(bw, -H, -bw, 0);
+    g.addColorStop(0, "#F0473F");
+    g.addColorStop(1, "#B3161B");
+    x.fillStyle = g;
+    x.fill();
+    // Fluff: a row of overlapping puffs along the band's near half, a soft shadow under each.
+    const puff = Math.max(R * 0.12, 0.9);
+    for (const [dy, col] of [[R * 0.04, "rgba(0,0,0,0.18)"], [0, "#FFFFFF"]] as const) {
+      x.fillStyle = col;
+      x.beginPath();
+      for (let i = 0; i <= 6; i++) {
+        const t = (i / 6) * Math.PI;
+        const px = Math.cos(t) * bw, py = Math.sin(t) * be + dy;
+        x.moveTo(px + puff, py);
+        x.arc(px, py, puff, 0, Math.PI * 2);
+      }
+      x.fill();
+    }
+    for (const [dy, col, r] of [[R * 0.03, "rgba(0,0,0,0.18)", R * 0.17], [0, "#FFFFFF", R * 0.16]] as const) {
+      x.fillStyle = col;
+      x.beginPath();
+      x.arc(tip.x, tip.y + dy, Math.max(r, 1.1), 0, Math.PI * 2);
+      x.fill();
+    }
+  }
+
+  /** Bayramlık: a small red fez with a black tassel hanging over its side. */
+  private drawFez(x: CanvasRenderingContext2D, R: number, flat: number, hs: number) {
+    const wb = R * 0.33, wt = R * 0.27;
+    const eb = wb * flat, et = wt * flat;
+    const H = R * 0.56 * hs;
+    // The tassel hangs on the fez's right side; it swings behind it when the head turns right.
+    const side = wt * 1.12 * Math.cos(this.yaw);
+    const behind = Math.sin(this.yaw) > 0.2;
+    const tassel = () => {
+      x.strokeStyle = "#141414";
+      x.lineWidth = Math.max(0.8, R * 0.06);
+      x.beginPath();
+      x.moveTo(0, -H - et * 0.3);
+      x.quadraticCurveTo(side, -H - et, side, -H * 0.45);
+      x.stroke();
+      x.fillStyle = "#141414";
+      x.beginPath();
+      x.ellipse(side, -H * 0.3, Math.max(R * 0.07, 0.7), Math.max(R * 0.14, 1.2), 0, 0, Math.PI * 2);
+      x.fill();
+    };
+    if (behind) tassel();
+    x.beginPath();
+    x.moveTo(-wt, -H);
+    x.lineTo(-wb, 0);
+    x.ellipse(0, 0, wb, eb, 0, Math.PI, 0, true);
+    x.lineTo(wt, -H);
+    x.ellipse(0, -H, wt, et, 0, 0, Math.PI, true);
+    x.closePath();
+    const g = x.createLinearGradient(wb, 0, -wb, 0);
+    g.addColorStop(0, "#E8433A");
+    g.addColorStop(1, "#A3161A");
+    x.fillStyle = g;
+    x.fill();
+    x.fillStyle = "#B81D22"; // top of the fez
+    x.beginPath();
+    x.ellipse(0, -H, wt, et, 0, 0, Math.PI * 2);
+    x.fill();
+    if (!behind) tassel();
   }
 
   /** Scratch paw: a little round paw swiping across the face. */

@@ -34,8 +34,8 @@ import { playAgentSound } from "./agentSounds";
 import { AgentLeft, AgentDot, AgentPanel, type AgentActivity } from "./components/AgentStatus";
 import { CatMascot, catOutfit } from "./components/CatMascot";
 import { CatWardrobe, type OutfitSetting } from "./components/CatWardrobe";
-import type { OutfitId } from "./mascot/mascot";
-import { catPose, SLEEP_AFTER_MS } from "./mascot/mascot";
+import type { CatColor, OutfitId } from "./mascot/mascot";
+import { catPose, resolveCatColor, SLEEP_AFTER_MS } from "./mascot/mascot";
 import type { WidgetConfig } from "./components/StatusWidgetConfig";
 import {
   DEFAULT_DUAL_CLOCK_ZONE,
@@ -394,6 +394,7 @@ function App() {
   const [isHovered, setIsHovered] = useState(false);
   const [catMenu, setCatMenu] = useState(false);
   const [catPreview, setCatPreview] = useState<OutfitId | null>(null);
+  const [catColorPreview, setCatColorPreview] = useState<CatColor | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [scale, setScale] = useState(() => parseFloat(localStorage.getItem("nectar-scale") || "1.0"));
   const [timeFormat24h, setTimeFormat24h] = useState(() => localStorage.getItem("nectar-time-format-24h") === "true");
@@ -636,7 +637,7 @@ function App() {
 
   // The cat's menu must not outlive the expanded notch.
   useEffect(() => {
-    if (!isHovered || !isVisible || isHidden) { setCatMenu(false); setCatPreview(null); }
+    if (!isHovered || !isVisible || isHidden) { setCatMenu(false); setCatPreview(null); setCatColorPreview(null); }
   }, [isHovered, isVisible, isHidden]);
 
   useEffect(() => {
@@ -787,6 +788,7 @@ function App() {
   const rememberedModeRef = useRef<"command-center" | "calendar" | null>(null);
   const [settingsVisualizerEnabled, setSettingsVisualizerEnabled] = useState(() => localStorage.getItem("nectar-visualizer-enabled") !== "false");
   const [catSetting, setCatSetting] = useState<OutfitSetting>(() => (localStorage.getItem("nectar-cat-outfit") as OutfitSetting) || "auto");
+  const [catColor, setCatColor] = useState(() => resolveCatColor(localStorage.getItem("nectar-cat-color")));
   const [catVisible, setCatVisible] = useState(() => localStorage.getItem("nectar-cat-visible") !== "false");
   const [catOnDesktop, setCatOnDesktop] = useState(false);
   // Desktop cat (cat.html) owns nectar-cat-desktop; useSettingsSync drops the null that brings it back.
@@ -1088,6 +1090,7 @@ function App() {
       "nectar-visualizer-enabled": setSettingsVisualizerEnabled,
       "nectar-cat-visible": (v) => setCatVisible(v !== false && v !== "false"),
       "nectar-cat-outfit": (v) => { const o = v == null ? "auto" : String(v); localStorage.setItem("nectar-cat-outfit", o); setCatSetting(o as OutfitSetting); },
+      "nectar-cat-color": (v) => { const c = resolveCatColor(v); localStorage.setItem("nectar-cat-color", c); setCatColor(c); },
       "nectar-media-album-art-enabled": setSettingsAlbumArtEnabled,
       "nectar-media-ambience-enabled": setSettingsAmbienceEnabled,
       "nectar-media-compact-glow-enabled": setSettingsCompactGlowEnabled,
@@ -2641,6 +2644,7 @@ function App() {
                                       <CatMascot
                                         pose={catPose({ agent: agentActivity?.state ?? null, music: isMusicMode && !settingsVisualizerEnabled, idleMs: catIdleMs })}
                                         outfit={catPreview ?? catOutfit(catSetting)}
+                                        color={catColorPreview ?? catColor}
                                         size={30}
                                         interactive
                                         onContextMenu={(e) => { e.preventDefault(); setCatMenu(true); }}
@@ -2654,15 +2658,23 @@ function App() {
                                       {catMenu && (
                                         <CatWardrobe
                                           value={catSetting}
+                                          color={catColor}
                                           t={t}
                                           onPreview={setCatPreview}
-                                          onClose={() => { setCatMenu(false); setCatPreview(null); }}
+                                          onPreviewColor={setCatColorPreview}
+                                          onPickColor={(c) => {
+                                            localStorage.setItem("nectar-cat-color", c);
+                                            invoke("save_setting", { key: "nectar-cat-color", value: c }).catch(console.error);
+                                            setCatColor(c);
+                                          }}
+                                          onClose={() => { setCatMenu(false); setCatPreview(null); setCatColorPreview(null); }}
                                           onPick={(v) => {
                                             localStorage.setItem("nectar-cat-outfit", v);
                                             invoke("save_setting", { key: "nectar-cat-outfit", value: v }).catch(console.error);
                                             setCatSetting(v);
                                             setCatMenu(false);
                                             setCatPreview(null);
+                                            setCatColorPreview(null);
                                           }}
                                         />
                                       )}

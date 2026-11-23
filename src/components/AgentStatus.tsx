@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useT } from "../i18n";
-import { CatMascot, catOutfit } from "./CatMascot";
+import { CatMascot, catColor, catOutfit } from "./CatMascot";
 import { catPose } from "../mascot/mascot";
 
 export type AgentState = "working" | "tool" | "needs_input" | "done" | "error";
@@ -33,7 +33,7 @@ export function AgentMascot({ activity }: { activity: AgentActivity }) {
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 520, damping: 22 }}
     >
-      <CatMascot pose={agentPose(activity.state)} outfit={catOutfit()} size={30} />
+      <CatMascot pose={agentPose(activity.state)} outfit={catOutfit()} color={catColor()} size={30} />
     </motion.span>
   );
 }
@@ -66,7 +66,7 @@ export function AgentPanel({ activity, picks, onPick, onOpen, onDismiss, onAnswe
   return (
     <>
       <div className="agent-panel-head">
-        <CatMascot pose={agentPose(activity.state)} outfit={catOutfit()} size={40} />
+        <CatMascot pose={agentPose(activity.state)} outfit={catOutfit()} color={catColor()} size={40} />
         <div className="agent-panel-text">
           <b>{activity.name ?? t("agent.default")}</b>
           <span>{activity.project ? `${t(`agent.${activity.state}`)} · ${activity.project}` : t(`agent.${activity.state}`)}</span>

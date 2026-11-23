@@ -748,5 +748,11 @@
   "cat.outfit.none": "Ohne Outfit",
   "cat.outfit.witch": "Hexenhut",
   "cat.outfit.santa": "Weihnachtsmütze",
-  "cat.outfit.bayram": "Festtagskleidung"
+  "cat.outfit.bayram": "Festtagskleidung",
+  "cat.color.label": "Farbe",
+  "cat.color.white": "Weiß",
+  "cat.color.black": "Schwarz",
+  "cat.color.ginger": "Rot",
+  "cat.color.tabby": "Getigert",
+  "cat.color.grey": "Grau"
 }

@@ -7,6 +7,13 @@ export type CatPose = "idle" | "working" | "needs-input" | "done" | "error" | "m
 export type CatReaction = "pet" | "angry" | "dizzy" | "hearts";
 export type OutfitId = "none" | "witch" | "santa" | "bayram";
 export const OUTFITS: OutfitId[] = ["none", "witch", "santa", "bayram"];
+export type CatColor = "white" | "black" | "ginger" | "tabby" | "grey";
+export const CAT_COLORS: CatColor[] = ["white", "black", "ginger", "tabby", "grey"];
+
+/** Saved `nectar-cat-color` to a palette id; missing or unknown is white. */
+export function resolveCatColor(v: unknown): CatColor {
+  return (CAT_COLORS as unknown[]).includes(v) ? (v as CatColor) : "white";
+}
 
 export const SLEEP_AFTER_MS = 10 * 60_000;
 export const DIZZY_WINDOW_MS = 1500;

@@ -748,5 +748,11 @@
   "cat.outfit.none": "Sans tenue",
   "cat.outfit.witch": "Chapeau de sorcière",
   "cat.outfit.santa": "Bonnet de Père Noël",
-  "cat.outfit.bayram": "Tenue de fête"
+  "cat.outfit.bayram": "Tenue de fête",
+  "cat.color.label": "Couleur",
+  "cat.color.white": "Blanc",
+  "cat.color.black": "Noir",
+  "cat.color.ginger": "Roux",
+  "cat.color.tabby": "Tigré",
+  "cat.color.grey": "Gris"
 }

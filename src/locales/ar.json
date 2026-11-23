@@ -748,5 +748,11 @@
   "cat.outfit.none": "بدون زي",
   "cat.outfit.witch": "قبعة الساحرة",
   "cat.outfit.santa": "قبعة بابا نويل",
-  "cat.outfit.bayram": "ملابس العيد"
+  "cat.outfit.bayram": "ملابس العيد",
+  "cat.color.label": "اللون",
+  "cat.color.white": "أبيض",
+  "cat.color.black": "أسود",
+  "cat.color.ginger": "برتقالي",
+  "cat.color.tabby": "مخطط",
+  "cat.color.grey": "رمادي"
 }
