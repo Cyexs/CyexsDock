@@ -1309,7 +1309,10 @@ pub fn setup_system_worker(app_handle: AppHandle) -> Sender<SystemCommand> {
                                     let is_matches_screen = rect.left <= screen_rect.left && rect.top <= screen_rect.top && 
                                                             rect.right >= screen_rect.right && rect.bottom >= screen_rect.bottom;
                                     
-                                    current_is_fs = (is_client_fullscreen || is_matches_screen) && !is_maximized_standard;
+                                    // Chrome/Edge keep WS_MAXIMIZE|WS_CAPTION in video fullscreen, so a client area covering the
+                                    // whole monitor wins over the maximized check (a normal maximized client stops at the taskbar).
+                                    // shortcut: a custom-frame browser maximized on a taskbar-less monitor also counts, revisit if reported.
+                                    current_is_fs = is_client_fullscreen || (is_matches_screen && !is_maximized_standard);
                                     fg_info = Some((screen_rect, rect, current_is_fs || is_maximized));
                                     // Logged once per change so fullscreen detection can be checked from nectar.log.
                                     if last_fs_log != Some((hwnd.0 as isize, current_is_fs, is_maximized)) && (current_is_fs || is_maximized || is_matches_screen) {
