@@ -28,7 +28,6 @@ export function AgentMascot({ activity }: { activity: AgentActivity }) {
   return (
     <motion.span
       className="agent-mascot"
-      key={activity.state}
       title={useAgentLabel(activity)}
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}

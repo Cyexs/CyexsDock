@@ -209,6 +209,8 @@ export class CatEngine {
   private look = { x: 0, y: 0 };
   private lookNext = 0;
   private emoteToken = 0;
+  /** Notch-sized cat: particles rise less and fade faster so the canvas top does not cut them. */
+  private small = false;
 
   constructor(pal: Palette) { this.pal = pal; }
 
@@ -381,7 +383,7 @@ export class CatEngine {
       this.lookNext = n + 0.8 + Math.random() * 2.2;
     }
     let ty = this.cfg.wanders ? (this.gaze ?? this.look.x * 0.62) : 0;
-    let tp = this.cfg.wanders ? this.look.y * 0.5 : 0;
+    let tp = this.cfg.wanders && this.gaze === null ? this.look.y * 0.5 : 0;
     if (this.state === "working") { ty = 0.12 + Math.sin(t * 1.3) * 0.12; tp = -0.22; }
     if (this.state === "sleeping") { ty = 0; tp = -0.18; }
     if (this.state === "dizzy") ty = Math.sin(t * 9) * 0.25;
@@ -424,7 +426,7 @@ export class CatEngine {
       this.lastAmbient = n;
       if (this.cfg.zz) this.emit("z", 1);
     }
-    for (const p of this.particles) p.age += dt;
+    for (const p of this.particles) p.age += dt * (this.small ? 1.5 : 1);
     this.particles = this.particles.filter((p) => p.age < p.life);
   }
 
@@ -433,6 +435,7 @@ export class CatEngine {
   /** Draws the cat with its head centre near (cx, cy); `size` = ear tip to chin, in CSS px. */
   draw(x: CanvasRenderingContext2D, cx0: number, cy0: number, size: number) {
     const R = size / CAT_H;
+    this.small = size < 48;
     const rx = R * HEAD_RX;
     const ry = R * HEAD_RY;
     // Head centre sits below the visual centre because the ears stick up.
@@ -848,11 +851,12 @@ export class CatEngine {
       const k = p.age / p.life;
       const a = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8;
       const px = cx + (p.x + p.vx * p.age) * R * 1.3;
-      const py = cy + (p.y + p.vy * p.age) * R * 1.3;
+      const py = cy + (p.y + p.vy * p.age * (this.small ? 0.5 : 1)) * R * 1.3;
       const sz = R * p.size * (1 + k * 0.4);
       x.save();
       x.translate(px, py);
-      x.globalAlpha = Math.min(1, Math.max(0, a));
+      // Fade out near the canvas top instead of being cut by its edge.
+      x.globalAlpha = clamp(a, 0, 1) * clamp(py / (R * 0.6), 0, 1);
       switch (p.type) {
         case "heart":
           x.rotate(Math.sin(p.age * 6) * 0.3);
