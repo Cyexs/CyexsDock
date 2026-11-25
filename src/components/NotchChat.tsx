@@ -18,8 +18,8 @@ import {
 import { renderMarkdown } from "../chat/markdown";
 
 type Provider = Chat["provider"];
-const PROVIDERS: Provider[] = ["gemini", "anthropic", "openai"];
-const PROVIDER_NAME: Record<Provider, string> = { gemini: "Gemini", anthropic: "Claude", openai: "ChatGPT" };
+const PROVIDERS: Provider[] = ["gemini", "anthropic", "openai", "claudecode"];
+const PROVIDER_NAME: Record<Provider, string> = { gemini: "Gemini", anthropic: "Claude", openai: "ChatGPT", claudecode: "Claude Code" };
 const KNOWN_ERRORS = ["key", "rate", "model", "server", "nokey", "empty", "net", "blocked", "noreply", "quota"];
 
 // Read at send time so a provider switch in Settings applies to the next message.
@@ -39,6 +39,10 @@ function errorText(t: ReturnType<typeof useT>, code: string): string {
   const detail = code.replace(/^other:/, "");
   return detail ? `${t("chat.err.other")} ${detail}` : t("chat.err.other").replace(/\s*:\s*$/, "");
 }
+
+const Typing = () => (
+  <span className="chat-typing" role="status" aria-label="…"><i /><i /><i /></span>
+);
 
 type Props = { open: boolean; pendingFiles: string[]; onFilesConsumed: () => void; onClose: () => void };
 
@@ -85,6 +89,11 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
         const a = active.current;
         if (a && mine(e.payload.id)) update(a.chat, (c) => appendDelta(c, e.payload.text));
       }),
+      // Provider failed mid-reply and the backend retries: drop the partial text.
+      win.listen<{ id: string }>("chat-restart", (e) => {
+        const a = active.current;
+        if (a && mine(e.payload.id)) update(a.chat, (c) => (c.messages[c.messages.length - 1]?.role === "assistant" ? { ...c, messages: c.messages.slice(0, -1) } : c));
+      }),
       win.listen<{ id: string }>("chat-done", (e) => { if (mine(e.payload.id)) finishRef.current("done"); }),
       win.listen<{ id: string }>("chat-cut", (e) => { if (mine(e.payload.id)) finishRef.current("cut"); }),
       win.listen<{ id: string; code: string }>("chat-error", (e) => { if (mine(e.payload.id)) finishRef.current("error", e.payload.code); }),
@@ -107,13 +116,10 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
       if (historyOpenRef.current) setHistoryOpen(false);
       else { invoke("chat_log", { event: "esc" }).catch(() => {}); onCloseRef.current(); }
     };
-    // Clicks outside the notch land in another app (the window is click-through there), which blurs us.
-    const onBlur = () => { invoke("chat_log", { event: "blur" }).catch(() => {}); onCloseRef.current(); };
+    // No close on blur: the user closes the chat (X, Esc, hotkey), clicking another app must not lose it.
     document.addEventListener("keydown", onKey);
-    window.addEventListener("blur", onBlur);
     return () => {
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("blur", onBlur);
       setHistoryOpen(false);
       invoke("set_window_keyboard_focus", { enabled: false }).catch(() => {});
     };
@@ -238,7 +244,7 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
                 </>
               ) : (
                 <>
-                  {m.text ? <div className="chat-md">{renderMarkdown(m.text, t("chat.copy"))}</div> : m.state === "streaming" && <span className="chat-typing">…</span>}
+                  {m.text ? <div className="chat-md">{renderMarkdown(m.text, t("chat.copy"))}</div> : m.state === "streaming" && <Typing />}
                   {m.state === "cut" && <div className="chat-note">{t("chat.cut")}</div>}
                   {m.state === "error" && m.error && <div className="chat-note">{errorText(t, m.error)}</div>}
                   {m.text && m.state !== "streaming" && (
@@ -252,7 +258,7 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
           ))
         )}
         {busy && messages[messages.length - 1]?.role === "user" && (
-          <div className="chat-msg assistant"><span className="chat-typing">…</span></div>
+          <div className="chat-msg assistant"><Typing /></div>
         )}
       </div>
 

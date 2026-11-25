@@ -6,13 +6,14 @@ import { SettingRow } from "./SettingRow";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 import { useT } from "../i18n";
 
-type Provider = "gemini" | "anthropic" | "openai";
-const PROVIDERS: Provider[] = ["gemini", "anthropic", "openai"];
-const NAME: Record<Provider, string> = { gemini: "Gemini", anthropic: "Claude", openai: "ChatGPT" };
+type Provider = "gemini" | "anthropic" | "openai" | "claudecode";
+const PROVIDERS: Provider[] = ["gemini", "anthropic", "openai", "claudecode"];
+const NAME: Record<Provider, string> = { gemini: "Gemini", anthropic: "Claude", openai: "ChatGPT", claudecode: "Claude Code" };
 const KEY_PAGE: Record<Provider, string> = {
   gemini: "https://aistudio.google.com/apikey",
   anthropic: "https://console.anthropic.com/settings/keys",
   openai: "https://platform.openai.com/api-keys",
+  claudecode: "",
 };
 const DEFAULT_HOTKEY = "Ctrl+Alt+C";
 
@@ -27,7 +28,7 @@ export function AiChatTab() {
     const v = localStorage.getItem("nectar-chat-provider") as Provider | null;
     return v && PROVIDERS.includes(v) ? v : "gemini";
   });
-  const [saved, setSaved] = useState<Record<Provider, boolean>>({ gemini: false, anthropic: false, openai: false });
+  const [saved, setSaved] = useState<Record<Provider, boolean>>({ gemini: false, anthropic: false, openai: false, claudecode: false });
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
   const [hotkey, setHotkey] = useState(() => localStorage.getItem("nectar-chat-hotkey") ?? DEFAULT_HOTKEY);
@@ -103,7 +104,7 @@ export function AiChatTab() {
       <div className="setting-group">
         <SettingRow icon={Bot} label={t("chat.set.provider")} desc={t("chat.set.provider.desc")} stacked>
           <div className="unit-toggle-minimal wide caldav-providers">
-            {PROVIDERS.map((p) => (
+            {PROVIDERS.filter((p) => p !== "claudecode" || saved.claudecode || provider === p).map((p) => (
               <span key={p} className={provider === p ? "active" : ""} onClick={() => pick(p)}>
                 {NAME[p]}{p === "gemini" ? ` (${t("chat.set.free")})` : ""}
               </span>
@@ -111,6 +112,9 @@ export function AiChatTab() {
           </div>
         </SettingRow>
 
+        {provider === "claudecode" ? (
+          <SettingRow icon={Lock} label="Claude Code" desc={t(saved.claudecode ? "chat.set.claudeCode" : "chat.set.claudeCodeMissing")} />
+        ) : (<>
         <SettingRow icon={Lock} label={`${NAME[provider]} ${t("chat.set.key")}`} desc={provider === "gemini" ? undefined : t("chat.set.paid")} stacked>
           <div className="caldav-form">
             <input
@@ -147,6 +151,7 @@ export function AiChatTab() {
             <ExternalLink size={11} /> {t("chat.set.openPage")}
           </button>
         </SettingRow>
+        </>)}
 
         <SettingRow icon={Keyboard} label={t("chat.set.hotkey")} desc={t("chat.set.hotkey.desc")}>
           <ShortcutRecorder value={hotkey} onCommit={commitHotkey} />

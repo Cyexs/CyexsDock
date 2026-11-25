@@ -796,6 +796,8 @@
   "chat.set.free": "ücretsiz anahtar",
   "chat.set.key": "API anahtarı",
   "chat.set.paid": "Bu anahtar ücretlidir; kullanım sağlayıcının hesabından faturalanır.",
+  "chat.set.claudeCode": "Bu bilgisayardaki Claude Code ile, kendi Claude aboneliğinizden yanıt verir. Anahtar gerekmez; kullanım aboneliğinizin limitinden düşer. Dosya eki desteklenmez.",
+  "chat.set.claudeCodeMissing": "Claude Code bu bilgisayarda bulunamadı.",
   "chat.set.keySaved": "Anahtar kayıtlı",
   "chat.set.keyPlaceholder": "Anahtarı buraya yapıştırın",
   "chat.set.save": "Kaydet",

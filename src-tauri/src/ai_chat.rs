@@ -20,6 +20,8 @@ pub enum Provider {
     Gemini,
     Anthropic,
     Openai,
+    /// Local Claude Code CLI on the user's own subscription; no API key.
+    Claudecode,
 }
 
 impl Provider {
@@ -28,6 +30,7 @@ impl Provider {
             Provider::Gemini => "gemini",
             Provider::Anthropic => "anthropic",
             Provider::Openai => "openai",
+            Provider::Claudecode => "claudecode",
         }
     }
     pub fn model(self) -> &'static str {
@@ -35,6 +38,7 @@ impl Provider {
             Provider::Gemini => "gemini-3.8-flash",
             Provider::Anthropic => "claude-haiku-5-5",
             Provider::Openai => "gpt-6-luna",
+            Provider::Claudecode => "sonnet",
         }
     }
 }
@@ -61,10 +65,10 @@ fn part_block(p: Provider, part: &Part) -> Value {
     let is_img = part.mime.starts_with("image/");
     match (&part.kind, p) {
         (PartKind::Text(t), Provider::Gemini) => json!({"text": format!("[{}]\n{}", part.name, t)}),
-        (PartKind::Text(t), Provider::Anthropic) => json!({"type":"text","text": format!("[{}]\n{}", part.name, t)}),
+        (PartKind::Text(t), Provider::Anthropic | Provider::Claudecode) => json!({"type":"text","text": format!("[{}]\n{}", part.name, t)}),
         (PartKind::Text(t), Provider::Openai) => json!({"type":"input_text","text": format!("[{}]\n{}", part.name, t)}),
         (PartKind::Base64(d), Provider::Gemini) => json!({"inline_data":{"mime_type": part.mime, "data": d}}),
-        (PartKind::Base64(d), Provider::Anthropic) => {
+        (PartKind::Base64(d), Provider::Anthropic | Provider::Claudecode) => {
             let ty = if is_img { "image" } else { "document" };
             json!({"type": ty, "source": {"type":"base64","media_type": part.mime, "data": d}})
         }
@@ -82,7 +86,7 @@ fn part_block(p: Provider, part: &Part) -> Value {
 fn text_block(p: Provider, role: &str, text: &str) -> Value {
     match p {
         Provider::Gemini => json!({"text": text}),
-        Provider::Anthropic => json!({"type":"text","text": text}),
+        Provider::Anthropic | Provider::Claudecode => json!({"type":"text","text": text}),
         Provider::Openai => {
             let ty = if role == "assistant" { "output_text" } else { "input_text" };
             json!({"type": ty, "text": text})
@@ -128,7 +132,7 @@ pub fn build_request(
             vec![("x-goog-api-key", key.to_string()), ("content-type", "application/json".into())],
             json!({"systemInstruction":{"parts":[{"text": SYSTEM_PROMPT}]}, "contents": messages}),
         ),
-        Provider::Anthropic => (
+        Provider::Anthropic | Provider::Claudecode => (
             "https://api.anthropic.com/v1/messages".into(),
             vec![
                 ("x-api-key", key.to_string()),
@@ -157,7 +161,7 @@ pub fn parse_sse_line(p: Provider, line: &str) -> Option<String> {
                 .collect();
             (!s.is_empty()).then_some(s)
         }
-        Provider::Anthropic => (v["type"] == "content_block_delta")
+        Provider::Anthropic | Provider::Claudecode => (v["type"] == "content_block_delta")
             .then(|| v["delta"]["text"].as_str().map(String::from))
             .flatten(),
         Provider::Openai => (v["type"] == "response.output_text.delta")
@@ -176,7 +180,7 @@ pub fn parse_sse_error(p: Provider, line: &str) -> Option<String> {
         _ => "server",
     };
     match p {
-        Provider::Anthropic => (v["type"] == "error").then(|| code(v["error"]["type"].as_str().unwrap_or("")).into()),
+        Provider::Anthropic | Provider::Claudecode => (v["type"] == "error").then(|| code(v["error"]["type"].as_str().unwrap_or("")).into()),
         Provider::Openai => matches!(v["type"].as_str(), Some("error" | "response.failed")).then(|| {
             let e = if v["type"] == "error" { &v } else { &v["response"]["error"] };
             let c = e["code"].as_str().or_else(|| e["error"]["code"].as_str()).unwrap_or("");
@@ -329,7 +333,10 @@ fn feed(buf: &mut String, chunk: &str) -> Vec<String> {
 
 #[tauri::command]
 pub async fn chat_key_status() -> HashMap<String, bool> {
-    ALL.iter().map(|p| (p.id().to_string(), load_key(*p).is_some())).collect()
+    let mut m: HashMap<String, bool> = ALL.iter().map(|p| (p.id().to_string(), load_key(*p).is_some())).collect();
+    // "Key" here means the Claude Code CLI is installed; the settings only offer it then.
+    m.insert(Provider::Claudecode.id().into(), claude_exe().is_some());
+    m
 }
 
 #[tauri::command]
@@ -347,10 +354,13 @@ pub async fn chat_set_key(provider: Provider, key: String) -> Result<(), String>
 
 #[tauri::command]
 pub async fn chat_test_key(provider: Provider) -> Result<(), String> {
+    if provider == Provider::Claudecode {
+        return claude_exe().map(|_| ()).ok_or_else(|| "nokey".into());
+    }
     let key = load_key(provider).ok_or("nokey")?;
     let url = match provider {
         Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
-        Provider::Anthropic => "https://api.anthropic.com/v1/models",
+        Provider::Anthropic | Provider::Claudecode => "https://api.anthropic.com/v1/models",
         Provider::Openai => "https://api.openai.com/v1/models",
     };
     let (_, headers, _) = build_request(provider, &key, &[], &[]);
@@ -438,7 +448,14 @@ async fn send_inner(
     history: Vec<ChatTurn>,
     files: Vec<String>,
 ) -> Result<(), String> {
-    let key = load_key(provider).ok_or("nokey")?;
+    let cli = provider == Provider::Claudecode;
+    let key = if cli { String::new() } else { load_key(provider).ok_or("nokey")? };
+    if cli {
+        if let Some(f) = files.first() {
+            let name = Path::new(f).file_name().and_then(|n| n.to_str()).unwrap_or("file");
+            return Err(format!("file:type:{name}")); // the CLI path is text-only
+        }
+    }
     if files.len() > MAX_FILES {
         return Err("file:count:".into());
     }
@@ -446,7 +463,11 @@ async fn send_inner(
     if parts.is_empty() && history.iter().all(|t| t.text.trim().is_empty()) {
         return Err("empty".into());
     }
-    let result = stream(window, id, provider, &key, &history, &parts).await;
+    let result = if cli {
+        claude_code_stream(window, id, &history).await
+    } else {
+        stream(window, id, provider, &key, &history, &parts).await
+    };
     let label = window.label();
     match result {
         Ok(true) => window.emit_to(label, "chat-cut", json!({"id": id})),
@@ -469,7 +490,20 @@ fn on_line(window: &Window, id: &str, p: Provider, line: &str, got_text: &mut bo
     Ok(())
 }
 
+/// Gemini answered with a lighter model when the main one stays overloaded.
+const GEMINI_FALLBACK: &str = "gemini-3.5-flash-lite";
+
+/// URLs to try in order while the provider answers 5xx (often "overloaded").
+fn attempt_urls(p: Provider, url: &str) -> Vec<String> {
+    let mut v = vec![url.to_string(), url.to_string()];
+    if p == Provider::Gemini {
+        v.push(url.replace(p.model(), GEMINI_FALLBACK));
+    }
+    v
+}
+
 /// Streams one reply; Ok(true) = cancelled, Err = error code.
+/// A 5xx before or during the reply is retried (Gemini last on a lighter model); partial text is dropped via "chat-restart".
 async fn stream(
     window: &Window,
     id: &str,
@@ -482,17 +516,46 @@ async fn stream(
         return Ok(true); // Stop pressed before the request went out
     }
     let (url, headers, body) = build_request(p, key, history, parts);
+    let body = body.to_string();
+    let urls = attempt_urls(p, &url);
+    for (i, u) in urls.iter().enumerate() {
+        if i > 0 {
+            if let Err(Stop::Cut) = guarded(id, tokio::time::sleep(Duration::from_secs(1))).await {
+                return Ok(true);
+            }
+        }
+        match stream_once(window, id, p, u, &headers, &body, i + 1).await {
+            Err(code) if code == "server" && i + 1 < urls.len() => {
+                window.emit_to(window.label(), "chat-restart", json!({"id": id})).ok();
+            }
+            Err(code) if code == "idle" => return Err("server".into()),
+            r => return r,
+        }
+    }
+    Err("server".into())
+}
+
+/// One request; Err("idle") = no bytes for IDLE_LIMIT (not worth a retry).
+async fn stream_once(
+    window: &Window,
+    id: &str,
+    p: Provider,
+    url: &str,
+    headers: &[(&'static str, String)],
+    body: &str,
+    attempt: usize,
+) -> Result<bool, String> {
     let mut req = client().post(url).body(body.to_string());
     for (k, v) in headers {
-        req = req.header(k, v);
+        req = req.header(*k, v);
     }
     let mut resp = match guarded(id, req.send()).await {
         Ok(r) => r.map_err(net_error)?,
         Err(Stop::Cut) => return Ok(true),
-        Err(Stop::Idle) => return Err("server".into()),
+        Err(Stop::Idle) => return Err("idle".into()),
     };
     let status = resp.status().as_u16();
-    crate::diagnostics::log(&format!("chat: {} status {}", p.id(), status));
+    crate::diagnostics::log(&format!("chat: {} status {} (try {attempt})", p.id(), status));
     if !(200..300).contains(&status) {
         let body = match guarded(id, resp.text()).await {
             Ok(b) => b.unwrap_or_default(),
@@ -502,28 +565,150 @@ async fn stream(
         return Err(friendly_error(status, &body));
     }
     let (mut line_buf, mut carry, mut got_text) = (String::new(), Vec::<u8>::new(), false);
+    let r = async {
+        loop {
+            let chunk = match guarded(id, resp.chunk()).await {
+                Ok(r) => r.map_err(net_error)?,
+                Err(Stop::Cut) => return Ok(true),
+                Err(Stop::Idle) => return Err("idle".into()),
+            };
+            let Some(chunk) = chunk else { break };
+            carry.extend_from_slice(&chunk);
+            // A multi-byte char may straddle chunks: decode the valid prefix, keep the rest.
+            let valid = match std::str::from_utf8(&carry) {
+                Ok(s) => s.len(),
+                Err(e) => e.valid_up_to(),
+            };
+            let text = String::from_utf8_lossy(&carry[..valid]).into_owned();
+            carry.drain(..valid);
+            for line in feed(&mut line_buf, &text) {
+                on_line(window, id, p, &line, &mut got_text)?;
+            }
+        }
+        on_line(window, id, p, line_buf.trim(), &mut got_text)?;
+        if !got_text {
+            return Err("noreply".into());
+        }
+        Ok(false)
+    }
+    .await;
+    if let Err(code) = &r {
+        crate::diagnostics::log(&format!("chat: {} stream error {code} (try {attempt})", p.id()));
+    }
+    r
+}
+
+// ---- Claude Code CLI (the user's own subscription, no API key) ----
+
+/// claude.exe from the standard install folder or PATH.
+fn claude_exe() -> Option<std::path::PathBuf> {
+    let home = std::env::var_os("USERPROFILE").map(|h| Path::new(&h).join(".local").join("bin").join("claude.exe"));
+    let on_path: Vec<_> = std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).map(|d| d.join("claude.exe")).collect())
+        .unwrap_or_default();
+    home.into_iter().chain(on_path).find(|p| p.is_file())
+}
+
+/// `-p` takes one prompt, so earlier turns are folded into it as a transcript.
+pub fn claude_code_prompt(history: &[ChatTurn]) -> String {
+    let turns: Vec<&ChatTurn> = history.iter().filter(|t| !t.text.trim().is_empty()).collect();
+    let Some((last, before)) = turns.split_last() else { return String::new() };
+    if before.is_empty() {
+        return last.text.clone();
+    }
+    let mut s = String::from("Conversation so far:\n\n");
+    for t in before {
+        let who = if t.role == "assistant" { "Assistant" } else { "User" };
+        s.push_str(&format!("{who}: {}\n\n", t.text));
+    }
+    s.push_str(&format!("Reply to the user's latest message:\n{}", last.text));
+    s
+}
+
+pub enum CliLine {
+    Text(String),
+    Error(String),
+    Other,
+}
+
+/// One `--output-format stream-json` line: a text delta, a final error, or nothing for us.
+pub fn parse_cli_line(line: &str) -> CliLine {
+    let Ok(v) = serde_json::from_str::<Value>(line) else { return CliLine::Other };
+    let ev = &v["event"];
+    match v["type"].as_str() {
+        Some("stream_event") if ev["type"] == "content_block_delta" && ev["delta"]["type"] == "text_delta" => {
+            ev["delta"]["text"].as_str().map_or(CliLine::Other, |t| CliLine::Text(t.into()))
+        }
+        Some("result") if v["is_error"] == true => {
+            let msg = v["result"].as_str().unwrap_or_default();
+            CliLine::Error(if msg.to_lowercase().contains("limit") {
+                "rate".into()
+            } else {
+                format!("other:{}", msg.chars().take(200).collect::<String>())
+            })
+        }
+        _ => CliLine::Other,
+    }
+}
+
+/// Streams one reply from the local `claude` CLI; Ok(true) = cancelled.
+async fn claude_code_stream(window: &Window, id: &str, history: &[ChatTurn]) -> Result<bool, String> {
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+    if is_cancelled(id) {
+        return Ok(true);
+    }
+    let exe = claude_exe().ok_or("nokey")?;
+    let p = Provider::Claudecode;
+    let fail = |e: std::io::Error| format!("other:{e}");
+    // Isolated run: no hooks, MCP servers, skills, tools or CLAUDE.md, each of which would cost tokens.
+    let mut child = tokio::process::Command::new(exe)
+        .args([
+            "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+            "--model", p.model(), "--tools", "", "--no-session-persistence",
+            "--setting-sources", "local", "--strict-mcp-config", "--disable-slash-commands",
+            "--system-prompt", SYSTEM_PROMPT,
+        ])
+        .current_dir(std::env::temp_dir())
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+        .kill_on_drop(true) // Stop: dropping the child ends the CLI
+        .spawn()
+        .map_err(fail)?;
+    let mut stdin = child.stdin.take().ok_or("other:stdin")?;
+    stdin.write_all(claude_code_prompt(history).as_bytes()).await.map_err(fail)?;
+    drop(stdin);
+    let mut lines = BufReader::new(child.stdout.take().ok_or("other:stdout")?).lines();
+    let mut got_text = false;
     loop {
-        let chunk = match guarded(id, resp.chunk()).await {
-            Ok(r) => r.map_err(net_error)?,
+        let line = match guarded(id, lines.next_line()).await {
+            Ok(r) => r.map_err(fail)?,
             Err(Stop::Cut) => return Ok(true),
             Err(Stop::Idle) => return Err("server".into()),
         };
-        let Some(chunk) = chunk else { break };
-        carry.extend_from_slice(&chunk);
-        // A multi-byte char may straddle chunks: decode the valid prefix, keep the rest.
-        let valid = match std::str::from_utf8(&carry) {
-            Ok(s) => s.len(),
-            Err(e) => e.valid_up_to(),
-        };
-        let text = String::from_utf8_lossy(&carry[..valid]).into_owned();
-        carry.drain(..valid);
-        for line in feed(&mut line_buf, &text) {
-            on_line(window, id, p, &line, &mut got_text)?;
+        let Some(line) = line else { break };
+        match parse_cli_line(&line) {
+            CliLine::Text(t) => {
+                got_text = true;
+                window.emit_to(window.label(), "chat-delta", json!({"id": id, "text": t})).ok();
+            }
+            CliLine::Error(code) => {
+                crate::diagnostics::log(&format!("chat: claudecode error {}", code.chars().take(80).collect::<String>()));
+                return Err(code);
+            }
+            CliLine::Other => {}
         }
     }
-    on_line(window, id, p, line_buf.trim(), &mut got_text)?;
+    let mut err = String::new();
+    if let Some(mut e) = child.stderr.take() {
+        let _ = e.read_to_string(&mut err).await;
+    }
+    let status = child.wait().await.map_err(fail)?;
+    crate::diagnostics::log(&format!("chat: claudecode exit {:?} text={got_text}", status.code()));
     if !got_text {
-        return Err("noreply".into());
+        let err = err.trim();
+        return Err(if err.is_empty() { "noreply".into() } else { format!("other:{}", err.chars().take(200).collect::<String>()) });
     }
     Ok(false)
 }
@@ -531,6 +716,25 @@ async fn stream(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn claude_code_prompt_folds_history() {
+        assert_eq!(claude_code_prompt(&[ChatTurn { role: "user".into(), text: "hi".into() }]), "hi");
+        let p = claude_code_prompt(&turns());
+        assert!(p.starts_with("Conversation so far:"));
+        assert!(p.contains("User: hi\n\nAssistant: hello"));
+        assert!(p.ends_with("latest message:\nwhat is this"));
+    }
+
+    #[test]
+    fn parse_cli_line_reads_delta_and_error() {
+        let d = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"İyi"}}}"#;
+        assert!(matches!(parse_cli_line(d), CliLine::Text(t) if t == "İyi"));
+        let e = r#"{"type":"result","subtype":"success","is_error":true,"result":"Claude AI usage limit reached"}"#;
+        assert!(matches!(parse_cli_line(e), CliLine::Error(c) if c == "rate"));
+        let ok = r#"{"type":"result","subtype":"success","is_error":false,"result":"İyi"}"#;
+        assert!(matches!(parse_cli_line(ok), CliLine::Other));
+    }
 
     fn turns() -> Vec<ChatTurn> {
         vec![
@@ -544,6 +748,15 @@ mod tests {
     }
     fn pdf() -> Part {
         Part { mime: "application/pdf".into(), name: "a.pdf".into(), kind: PartKind::Base64("QUJD".into()) }
+    }
+
+    #[test]
+    fn overloaded_gemini_falls_back_to_lighter_model() {
+        let (url, _, _) = build_request(Provider::Gemini, "k", &turns(), &[]);
+        let urls = attempt_urls(Provider::Gemini, &url);
+        assert_eq!(urls.len(), 3);
+        assert!(urls[2].contains("/models/gemini-3.5-flash-lite:streamGenerateContent"));
+        assert_eq!(attempt_urls(Provider::Openai, "u").len(), 2);
     }
 
     #[test]

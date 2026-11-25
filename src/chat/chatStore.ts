@@ -8,7 +8,7 @@ export type ChatMessage = {
 };
 export type Chat = {
   id: string;
-  provider: "gemini" | "anthropic" | "openai";
+  provider: "gemini" | "anthropic" | "openai" | "claudecode";
   title: string;
   updated: number;
   messages: ChatMessage[];
@@ -30,7 +30,7 @@ export function loadChats(): Chat[] {
     .filter((c) => c && typeof c.id === "string" && Array.isArray(c.messages))
     .map((c) => ({
       ...c,
-      provider: ["gemini", "anthropic", "openai"].includes(c.provider) ? c.provider : "gemini",
+      provider: ["gemini", "anthropic", "openai", "claudecode"].includes(c.provider) ? c.provider : "gemini",
       title: typeof c.title === "string" ? c.title : "",
       updated: typeof c.updated === "number" ? c.updated : 0,
       messages: c.messages

@@ -2103,11 +2103,12 @@ function App() {
   // Hidden notch (hotkey, fullscreen) must not keep keyboard focus on an invisible textarea.
   useEffect(() => {
     // Not `isHidden`: smart/peek modes fold "notch not expanded" into it, which would close chat right after the hotkey opens it.
-    if (nectarMode === 'chat' && (hotkeyHidden || isFullscreen || !isVisible)) {
-      invoke('chat_log', { event: `hidden hotkeyHidden=${hotkeyHidden} fullscreen=${isFullscreen} visible=${isVisible}` }).catch(() => {});
+    // Not `isVisible`: it flips for fullscreen on ANY monitor; `isFullscreen` is this notch's monitor only.
+    if (nectarMode === 'chat' && (hotkeyHidden || isFullscreen)) {
+      invoke('chat_log', { event: `hidden hotkeyHidden=${hotkeyHidden} fullscreen=${isFullscreen}` }).catch(() => {});
       closeChat();
     }
-  }, [hotkeyHidden, isFullscreen, isVisible, nectarMode]);
+  }, [hotkeyHidden, isFullscreen, nectarMode]);
   // Saved custom CC layouts predate the chat button: add it once, later removals are respected.
   useEffect(() => {
     if (windowLabel !== 'main' || localStorage.getItem("nectar-cc-ai-chat-added")) return;

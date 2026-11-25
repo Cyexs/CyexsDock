@@ -802,6 +802,8 @@
   "chat.set.free": "free key",
   "chat.set.key": "API key",
   "chat.set.paid": "This key is paid; usage is billed to your account with the provider.",
+  "chat.set.claudeCode": "Answers through Claude Code on this computer, using your own Claude subscription. No key needed; usage counts toward your plan limits. Attachments are not supported.",
+  "chat.set.claudeCodeMissing": "Claude Code was not found on this computer.",
   "chat.set.keySaved": "Key saved",
   "chat.set.keyPlaceholder": "Paste the key here",
   "chat.set.save": "Save",
