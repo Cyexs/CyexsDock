@@ -93,8 +93,8 @@ pub fn build_request(
     let messages: Vec<Value> = history
         .iter()
         .enumerate()
-        .map(|(i, t)| {
-            // Providers reject empty text blocks, so attachment-only turns omit it.
+        .filter_map(|(i, t)| {
+            // Providers reject empty text blocks, so blank text is omitted.
             let mut content = Vec::new();
             if !t.text.trim().is_empty() {
                 content.push(text_block(p, &t.role, &t.text));
@@ -103,14 +103,14 @@ pub fn build_request(
                 content.extend(parts.iter().map(|x| part_block(p, x)));
             }
             if content.is_empty() {
-                content.push(text_block(p, &t.role, &t.text)); // never send a block-less turn
+                return None; // blank turn with no attachments is not sent
             }
             let role = match (p, t.role.as_str()) {
                 (Provider::Gemini, "assistant") => "model",
                 (_, r) => r,
             };
             let key = if p == Provider::Gemini { "parts" } else { "content" };
-            json!({"role": role, key: content})
+            Some(json!({"role": role, key: content}))
         })
         .collect();
     let model = p.model();
@@ -279,6 +279,29 @@ mod tests {
             let blocks = body[arr][0][key].as_array().unwrap();
             assert_eq!(blocks.len(), 1, "{p:?}");
             assert!(blocks[0].get("text").is_none(), "{p:?}");
+        }
+    }
+
+    #[test]
+    fn blank_turns_without_parts_are_dropped() {
+        let h = vec![
+            ChatTurn { role: "user".into(), text: "".into() },
+            ChatTurn { role: "assistant".into(), text: "ok".into() },
+            ChatTurn { role: "user".into(), text: "next".into() },
+        ];
+        for (p, arr, key) in [
+            (Provider::Gemini, "contents", "parts"),
+            (Provider::Anthropic, "messages", "content"),
+            (Provider::Openai, "input", "content"),
+        ] {
+            let (_, _, body) = build_request(p, "k", &h, &[]);
+            let turns = body[arr].as_array().unwrap();
+            assert_eq!(turns.len(), 2, "{p:?}");
+            for t in turns {
+                let blocks = t[key].as_array().unwrap();
+                assert!(!blocks.is_empty(), "{p:?}");
+                assert!(blocks.iter().all(|b| b["text"] != ""), "{p:?}");
+            }
         }
     }
 }
