@@ -23,6 +23,14 @@ const loaded = loadChats();
 eq(loaded.length, 30, "keeps 30");
 eq(loaded.some((c) => c.id === "c0"), false, "oldest dropped");
 
+// foreign data: only the valid chat survives, save does not throw
+const good = { id: "g", provider: "openai", title: "t", updated: 5, messages: [{ role: "user", text: "x" }] };
+mem.set("nectar-chat-history", JSON.stringify([null, 1, {}, { id: "a", messages: "x" }, good]));
+eq(loadChats(), [good], "foreign elements dropped");
+saveChats(loadChats());
+mem.set("nectar-chat-history", "{not json");
+eq(loadChats(), [], "invalid json");
+
 // historyForApi
 let c = newChat("openai");
 c = addUserMessage(c, "oku", ["a.pdf"]);

@@ -18,12 +18,25 @@ const KEY = "nectar-chat-history";
 const MAX_CHATS = 30;
 
 export function loadChats(): Chat[] {
+  let v: unknown;
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "[]");
-    return Array.isArray(v) ? v : [];
+    v = JSON.parse(localStorage.getItem(KEY) ?? "[]");
   } catch {
     return [];
   }
+  if (!Array.isArray(v)) return [];
+  // storage is untrusted: keep only well-formed chats, repair soft fields
+  return v
+    .filter((c) => c && typeof c.id === "string" && Array.isArray(c.messages))
+    .map((c) => ({
+      ...c,
+      provider: ["gemini", "anthropic", "openai"].includes(c.provider) ? c.provider : "gemini",
+      title: typeof c.title === "string" ? c.title : "",
+      updated: typeof c.updated === "number" ? c.updated : 0,
+      messages: c.messages.filter(
+        (m: any) => m && typeof m.text === "string" && (m.role === "user" || m.role === "assistant"),
+      ),
+    }));
 }
 
 export function saveChats(chats: Chat[]): void {
