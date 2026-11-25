@@ -14,7 +14,7 @@ const KEY_PAGE: Record<Provider, string> = {
   anthropic: "https://console.anthropic.com/settings/keys",
   openai: "https://platform.openai.com/api-keys",
 };
-const DEFAULT_HOTKEY = "Ctrl+Alt+Space";
+const DEFAULT_HOTKEY = "Ctrl+Alt+C";
 
 function save(key: string, value: string) {
   try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }

@@ -43,11 +43,20 @@ pub fn set_window_keyboard_focus(window: Window, enabled: bool) {
         let noactivate = WS_EX_NOACTIVATE.0 as usize;
         if enabled {
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (ex & !noactivate) as isize);
-            let _ = SetForegroundWindow(hwnd);
+            let ok = SetForegroundWindow(hwnd).as_bool();
+            let fg = windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow();
+            crate::diagnostics::log(&format!("keyboard focus: {} on, SetForegroundWindow={ok}, foreground is us: {}", window.label(), fg == hwnd));
         } else {
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (ex | noactivate) as isize);
         }
     }
+}
+
+/// Chat panel open/close reasons for diagnostics.log (event names only, never message text).
+#[tauri::command]
+pub fn chat_log(window: Window, event: String) {
+    let event: String = event.chars().filter(|c| c.is_ascii_alphanumeric() || " -_:=".contains(*c)).take(80).collect();
+    crate::diagnostics::log(&format!("chat ui ({}): {event}", window.label()));
 }
 
 #[tauri::command]

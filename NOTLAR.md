@@ -1,5 +1,29 @@
 # Notlar
 
+## 2026-11-25 oturumu (dal: `kedi-maskot`, main'e birleştirilmedi, push yok)
+
+### Yapılanlar
+- Masaüstü kedisi kaldırıldı; kedi yalnızca çentikte (0454298).
+- Müzik çubukları artık sesi dinlemiyor (WASAPI loopback silindi, Kaspersky mikrofon uyarısı bitti); şarkı çalınca oynuyor, durunca duruyor (7e286ef). Kullanıcı doğruladı.
+- Chrome PWA simgeleri (YouTube Music): Chrome AUMID'deki kısaltılmış kimlik (ilk 10 + son 16 harf) tanınıyor, tarayıcı pencerelerinde PWA simgesine önce bakılıyor (12081de). Kullanıcı doğruladı.
+- Kaspersky açılmıyordu: kendi arayüzü (avpui) takılmıştı, tepsiden Çıkış + yeniden açma düzeltti; CyexsDock ile ilgisi yok.
+- AI sohbet planı (`docs/superpowers/plans/2026-11-25-ai-sohbet.md`) ajanlarla uygulandı: Rust `ai_chat.rs` (Gemini/Claude/OpenAI, anahtar Kimlik Bilgisi Yöneticisi'nde, akış, Durdur, 120 sn sessizlik sınırı), sohbet kısayolu, `src/chat/` (geçmiş + güvenli Markdown), çentikte `NotchChat`, denetim merkezine sohbet düğmesi, rafta "Soru sor" alanı, Ayarlar > Yapay Zekâ sekmesi, 6 dil. Tüm görev denetimleri ve son inceleme temiz.
+- 18:00 sürümü kuruldu; Gemini anahtarı çalıştı ("Anahtar çalışıyor").
+- Teşhis için (commit edildi, henüz derlenip kurulmadı): kısayol basışı, pencere odağı (SetForegroundWindow sonucu) ve sohbet açılma/kapanma nedeni (`chat_log`: open/close/esc/blur/hidden) loga yazılıyor; varsayılan kısayol `Ctrl+Alt+C`.
+
+### Kararlar
+- Varsayılan sohbet kısayolu `Ctrl+Alt+C` (Ctrl+Alt+Space'i Claude masaüstü uygulaması kullanıyor).
+- Modeller: `gemini-3.8-flash`, `claude-haiku-5-5`, `gpt-6-luna`; OpenAI'ye `store: false`.
+- Her gönderim ayrı kimlik alır (Durdur kaybolmasın); 2 dk veri gelmezse "sunucu hatası".
+- Masaüstü kedisi istenmiyor.
+
+### Sıradaki işler
+1. Sohbet kısayolu bir kez açıyor, sonra açmıyor: teşhisli sürümü derle (`npm run tauri build -- --no-bundle`), kur, kullanıcı birkaç kez denesin, Masaüstüne kopyalanan `nectar.log`'da `hotkey:`, `keyboard focus:`, `chat ui` satırlarına bak. Şüphe: pencere odağı (blur) ya da SetForegroundWindow'un ikinci seferde reddedilmesi. Çentik akıllı modda olduğu için ekran denetimiyle görülemiyor.
+2. Sohbetin kalanını gerçek anahtarla dene: akış, Durdur, Esc ile kapatıp açma, internetsiz, yanlış anahtar, PDF'i "Soru sor"a bırakma, Claude/ChatGPT.
+3. Sonra `kedi-maskot` dalını main'e birleştirip sürüm yayını (kullanıcı onayıyla); "Cyexs Dev." oturumuna bildir.
+4. Ertelenen küçükler: sohbet açıkken bildirimler gösterilmiyor; başka ekranda silinen sohbet geri gelebilir; akış ortasında kopan bağlantı İngilizce uyarı veriyor; "Tümünü sil" onaysız.
+5. Eski askıdakiler: klasör yığınından sürükleme, siyah ekran, Win10 testi.
+
 ## 2026-11-23 oturumu (dal: `kedi-maskot`, main'e birleştirilmedi, push yok)
 
 ### Yapılanlar

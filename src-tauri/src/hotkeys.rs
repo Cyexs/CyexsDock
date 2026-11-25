@@ -14,7 +14,8 @@ const RELOAD: u32 = WM_APP + 1;
 static THREAD_ID: AtomicU32 = AtomicU32::new(0);
 
 const CHAT_HOTKEY_ID: i32 = 2;
-const CHAT_HOTKEY_DEFAULT: &str = "Ctrl+Alt+Space";
+// Not Ctrl+Alt+Space: the Claude desktop app takes that one.
+const CHAT_HOTKEY_DEFAULT: &str = "Ctrl+Alt+C";
 
 // false only when the chat hotkey is wanted but RegisterHotKey failed.
 static CHAT_OK: AtomicBool = AtomicBool::new(true);
@@ -84,6 +85,7 @@ pub fn start(app: AppHandle) {
             match msg.message {
                 WM_HOTKEY => {
                     let event = if msg.wParam.0 as i32 == CHAT_HOTKEY_ID { "chat-hotkey" } else { "notch-hotkey-toggle" };
+                    crate::diagnostics::log(&format!("hotkey: {event} pressed"));
                     let _ = app.emit(event, ());
                 }
                 RELOAD => apply(&app, &mut registered),
@@ -108,8 +110,8 @@ mod tests {
 
     #[test]
     fn effective_spec_rules() {
-        assert_eq!(effective_spec(None, Some("Ctrl+Alt+Space")).as_deref(), Some("Ctrl+Alt+Space"));
-        assert_eq!(effective_spec(Some("".into()), Some("Ctrl+Alt+Space")), None);
+        assert_eq!(effective_spec(None, Some("Ctrl+Alt+C")).as_deref(), Some("Ctrl+Alt+C"));
+        assert_eq!(effective_spec(Some("".into()), Some("Ctrl+Alt+C")), None);
         assert_eq!(effective_spec(Some(" Ctrl+K ".into()), None).as_deref(), Some("Ctrl+K"));
         assert_eq!(effective_spec(None, None), None);
     }

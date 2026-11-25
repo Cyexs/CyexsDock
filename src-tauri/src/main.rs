@@ -194,6 +194,7 @@ fn main() {
             get_custom_icons,
             set_menu_open,
             set_window_keyboard_focus,
+            chat_log,
             get_drives,
             open_dock_extra,
             audio_devices::get_audio_devices,

@@ -105,10 +105,10 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
       if (e.key !== "Escape") return;
       e.preventDefault();
       if (historyOpenRef.current) setHistoryOpen(false);
-      else onCloseRef.current();
+      else { invoke("chat_log", { event: "esc" }).catch(() => {}); onCloseRef.current(); }
     };
     // Clicks outside the notch land in another app (the window is click-through there), which blurs us.
-    const onBlur = () => onCloseRef.current();
+    const onBlur = () => { invoke("chat_log", { event: "blur" }).catch(() => {}); onCloseRef.current(); };
     document.addEventListener("keydown", onKey);
     window.addEventListener("blur", onBlur);
     return () => {

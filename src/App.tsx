@@ -2087,11 +2087,13 @@ function App() {
   const [chatFiles, setChatFiles] = useState<string[]>([]);
   const clearChatFiles = useCallback(() => setChatFiles([]), []);
   const openChat = () => {
+    invoke('chat_log', { event: `open mode=${nectarMode} hovered=${isHovered} hidden=${isHidden}` }).catch(() => {});
     clearTimeout(shelfCollapseTimer.current);
     setIsHovered(true);
     setCyexsMode('chat');
   };
   const closeChat = () => {
+    invoke('chat_log', { event: `close mode=${nectarMode}` }).catch(() => {});
     setCyexsMode(mediaInfo.has_media && isPlaying && settingsMusicCompactNotch ? 'music' : 'status');
     // Stay expanded when the pointer is on the notch (close button), like a normal hover.
     invoke<boolean>('pointer_over_notch').catch(() => false).then((over) => {
@@ -2101,7 +2103,10 @@ function App() {
   // Hidden notch (hotkey, fullscreen) must not keep keyboard focus on an invisible textarea.
   useEffect(() => {
     // Not `isHidden`: smart/peek modes fold "notch not expanded" into it, which would close chat right after the hotkey opens it.
-    if (nectarMode === 'chat' && (hotkeyHidden || isFullscreen || !isVisible)) closeChat();
+    if (nectarMode === 'chat' && (hotkeyHidden || isFullscreen || !isVisible)) {
+      invoke('chat_log', { event: `hidden hotkeyHidden=${hotkeyHidden} fullscreen=${isFullscreen} visible=${isVisible}` }).catch(() => {});
+      closeChat();
+    }
   }, [hotkeyHidden, isFullscreen, isVisible, nectarMode]);
   // Saved custom CC layouts predate the chat button: add it once, later removals are respected.
   useEffect(() => {
