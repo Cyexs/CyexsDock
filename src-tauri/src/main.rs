@@ -33,6 +33,7 @@ mod on_demand_windows;
 mod wallpaper;
 mod live_preview;
 mod notifications;
+mod ai_chat;
 
 use tauri::Manager;
 use windows::Win32::System::Console::SetConsoleCtrlHandler;
