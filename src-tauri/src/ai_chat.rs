@@ -363,7 +363,10 @@ async fn guarded<T>(id: &str, fut: impl Future<Output = T>) -> Result<T, Stop> {
     let start = Instant::now();
     loop {
         match tokio::time::timeout(SLICE, fut.as_mut()).await {
-            Ok(v) => return Ok(v),
+            Ok(v) => {
+                // Honor Stop even when the future is ready every time (fast stream).
+                return if is_cancelled(id) { Err(Stop::Cut) } else { Ok(v) };
+            }
             Err(_) => {
                 if let Some(s) = stop_reason(is_cancelled(id), start.elapsed()) {
                     return Err(s);
@@ -437,7 +440,11 @@ async fn stream(
     let status = resp.status().as_u16();
     crate::diagnostics::log(&format!("chat: {} status {}", p.id(), status));
     if !(200..300).contains(&status) {
-        let body = resp.text().await.unwrap_or_default();
+        let body = match guarded(id, resp.text()).await {
+            Ok(b) => b.unwrap_or_default(),
+            Err(Stop::Cut) => return Ok(true),
+            Err(Stop::Idle) => String::new(), // status alone still maps to a code
+        };
         return Err(friendly_error(status, &body));
     }
     let label = window.label();
@@ -617,6 +624,9 @@ mod tests {
         assert!(matches!(block_on(guarded("t-ok", async { 7 })), Ok(7)));
         cancelled().lock().unwrap().insert("t-cut".into());
         let r = block_on(guarded("t-cut", std::future::pending::<()>()));
+        assert!(matches!(r, Err(Stop::Cut)));
+        // Ready future + already-cancelled id must still cut (fast streams).
+        let r = block_on(guarded("t-cut", async { 1 }));
         assert!(matches!(r, Err(Stop::Cut)));
         cancelled().lock().unwrap().remove("t-cut");
     }
