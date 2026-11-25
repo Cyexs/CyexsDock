@@ -5,7 +5,8 @@ use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
-use std::time::Duration;
+use std::future::Future;
+use std::time::{Duration, Instant};
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
@@ -333,10 +334,61 @@ pub fn chat_cancel(id: String) {
     cancelled().lock().unwrap().insert(id);
 }
 
+const SLICE: Duration = Duration::from_millis(250);
+const IDLE_LIMIT: Duration = Duration::from_secs(120);
+
+enum Stop {
+    Cut,
+    Idle,
+}
+
+/// Why a wait should end: user cancel wins over idle timeout.
+fn stop_reason(cancel: bool, idle: Duration) -> Option<Stop> {
+    if cancel {
+        Some(Stop::Cut)
+    } else if idle >= IDLE_LIMIT {
+        Some(Stop::Idle)
+    } else {
+        None
+    }
+}
+
+fn is_cancelled(id: &str) -> bool {
+    cancelled().lock().unwrap().contains(id)
+}
+
+/// Awaits `fut` in short slices so cancel and idle timeout are noticed even when no bytes arrive.
+async fn guarded<T>(id: &str, fut: impl Future<Output = T>) -> Result<T, Stop> {
+    let mut fut = std::pin::pin!(fut);
+    let start = Instant::now();
+    loop {
+        match tokio::time::timeout(SLICE, fut.as_mut()).await {
+            Ok(v) => return Ok(v),
+            Err(_) => {
+                if let Some(s) = stop_reason(is_cancelled(id), start.elapsed()) {
+                    return Err(s);
+                }
+            }
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn chat_send(
     window: Window,
     id: String,
+    provider: Provider,
+    history: Vec<ChatTurn>,
+    files: Vec<String>,
+) -> Result<(), String> {
+    let r = send_inner(&window, &id, provider, history, files).await;
+    cancelled().lock().unwrap().remove(&id); // every exit path, so ids never pile up
+    r
+}
+
+async fn send_inner(
+    window: &Window,
+    id: &str,
     provider: Provider,
     history: Vec<ChatTurn>,
     files: Vec<String>,
@@ -349,9 +401,7 @@ pub async fn chat_send(
     if parts.is_empty() && history.iter().all(|t| t.text.trim().is_empty()) {
         return Err("empty".into());
     }
-    cancelled().lock().unwrap().remove(&id);
-    let result = stream(&window, &id, provider, &key, &history, &parts).await;
-    cancelled().lock().unwrap().remove(&id);
+    let result = stream(window, id, provider, &key, &history, &parts).await;
     let label = window.label();
     match result {
         Ok(true) => window.emit_to(label, "chat-cut", json!({"id": id})),
@@ -371,12 +421,19 @@ async fn stream(
     history: &[ChatTurn],
     parts: &[Part],
 ) -> Result<bool, String> {
+    if is_cancelled(id) {
+        return Ok(true); // Stop pressed before the request went out
+    }
     let (url, headers, body) = build_request(p, key, history, parts);
     let mut req = client().post(url).body(body.to_string());
     for (k, v) in headers {
         req = req.header(k, v);
     }
-    let mut resp = req.send().await.map_err(|e| format!("other:{}", e.without_url()))?;
+    let mut resp = match guarded(id, req.send()).await {
+        Ok(r) => r.map_err(|e| format!("other:{}", e.without_url()))?,
+        Err(Stop::Cut) => return Ok(true),
+        Err(Stop::Idle) => return Err("server".into()),
+    };
     let status = resp.status().as_u16();
     crate::diagnostics::log(&format!("chat: {} status {}", p.id(), status));
     if !(200..300).contains(&status) {
@@ -386,12 +443,12 @@ async fn stream(
     let label = window.label();
     let (mut line_buf, mut carry) = (String::new(), Vec::<u8>::new());
     loop {
-        if cancelled().lock().unwrap().contains(id) {
-            return Ok(true);
-        }
-        let Some(chunk) = resp.chunk().await.map_err(|e| format!("other:{}", e.without_url()))? else {
-            break;
+        let chunk = match guarded(id, resp.chunk()).await {
+            Ok(r) => r.map_err(|e| format!("other:{}", e.without_url()))?,
+            Err(Stop::Cut) => return Ok(true),
+            Err(Stop::Idle) => return Err("server".into()),
         };
+        let Some(chunk) = chunk else { break };
         carry.extend_from_slice(&chunk);
         // A multi-byte char may straddle chunks: decode the valid prefix, keep the rest.
         let valid = match std::str::from_utf8(&carry) {
@@ -543,6 +600,25 @@ mod tests {
         assert_eq!(classify_file(Path::new("b.pdf"), 11 * mb), Err("size".to_string()));
         assert_eq!(classify_file(Path::new("c.exe"), 10), Err("type".to_string()));
         assert_eq!(classify_file(Path::new("d.md"), mb), Ok(("text/plain".to_string(), true)));
+    }
+
+    #[test]
+    fn stop_reason_cancel_and_idle() {
+        let s = Duration::from_secs;
+        assert!(stop_reason(false, s(119)).is_none());
+        assert!(matches!(stop_reason(false, s(120)), Some(Stop::Idle)));
+        assert!(matches!(stop_reason(true, s(0)), Some(Stop::Cut)));
+        assert!(matches!(stop_reason(true, s(500)), Some(Stop::Cut)));
+    }
+
+    #[test]
+    fn guarded_returns_value_and_cuts_on_cancel() {
+        use tauri::async_runtime::block_on;
+        assert!(matches!(block_on(guarded("t-ok", async { 7 })), Ok(7)));
+        cancelled().lock().unwrap().insert("t-cut".into());
+        let r = block_on(guarded("t-cut", std::future::pending::<()>()));
+        assert!(matches!(r, Err(Stop::Cut)));
+        cancelled().lock().unwrap().remove("t-cut");
     }
 
     #[test]
