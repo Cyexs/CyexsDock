@@ -1,5 +1,4 @@
 //! AI chat: pure provider request building, SSE parsing and error mapping.
-#![allow(dead_code)] // consumed by later tasks (HTTP commands, UI)
 
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
@@ -141,7 +140,7 @@ pub fn build_request(
         Provider::Openai => (
             "https://api.openai.com/v1/responses".into(),
             vec![("Authorization", format!("Bearer {key}")), ("content-type", "application/json".into())],
-            json!({"model": model, "stream": true, "instructions": SYSTEM_PROMPT, "input": messages}),
+            json!({"model": model, "stream": true, "store": false, "instructions": SYSTEM_PROMPT, "input": messages}),
         ),
     }
 }
@@ -167,6 +166,39 @@ pub fn parse_sse_line(p: Provider, line: &str) -> Option<String> {
     }
 }
 
+/// Provider error carried by one SSE `data:` line, as a code the frontend translates.
+pub fn parse_sse_error(p: Provider, line: &str) -> Option<String> {
+    let v: Value = serde_json::from_str(line.strip_prefix("data:")?.trim()).ok()?;
+    let code = |c: &str| match c {
+        "insufficient_quota" => "quota",
+        "rate_limit_exceeded" | "rate_limit_error" | "RESOURCE_EXHAUSTED" => "rate",
+        "invalid_api_key" | "authentication_error" | "permission_error" => "key",
+        _ => "server",
+    };
+    match p {
+        Provider::Anthropic => (v["type"] == "error").then(|| code(v["error"]["type"].as_str().unwrap_or("")).into()),
+        Provider::Openai => matches!(v["type"].as_str(), Some("error" | "response.failed")).then(|| {
+            let e = if v["type"] == "error" { &v } else { &v["response"]["error"] };
+            let c = e["code"].as_str().or_else(|| e["error"]["code"].as_str()).unwrap_or("");
+            code(c).into()
+        }),
+        Provider::Gemini => {
+            if v.get("error").is_some() {
+                let status = v["error"]["code"].as_u64().unwrap_or(500) as u16;
+                return Some(friendly_error(status, &v.to_string()));
+            }
+            let blocked = ["SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST"];
+            let cand = &v["candidates"][0];
+            let no_text = cand["content"]["parts"]
+                .as_array()
+                .map_or(true, |a| a.iter().all(|x| x["text"].as_str().unwrap_or("").is_empty()));
+            let hit = !v["promptFeedback"]["blockReason"].is_null()
+                || (no_text && cand["finishReason"].as_str().is_some_and(|r| blocked.contains(&r)));
+            hit.then(|| "blocked".into())
+        }
+    }
+}
+
 /// Replaces `key` with `***`; keys under 8 chars are not searched.
 pub fn redact_key(text: &str, key: &str) -> String {
     if key.len() < 8 {
@@ -177,13 +209,14 @@ pub fn redact_key(text: &str, key: &str) -> String {
 
 /// Maps an HTTP failure to a code the frontend translates.
 pub fn friendly_error(status: u16, body: &str) -> String {
-    let msg = serde_json::from_str::<Value>(body)
-        .ok()
-        .and_then(|v| v["error"]["message"].as_str().map(String::from))
-        .unwrap_or_default();
+    // Gemini sometimes wraps the error object in an array.
+    let v = serde_json::from_str::<Value>(body).unwrap_or_default();
+    let v = if v.is_array() { v[0].clone() } else { v };
+    let msg = v["error"]["message"].as_str().unwrap_or_default().to_string();
     match status {
         401 | 403 => "key".into(),
         400 if msg.contains("API key") => "key".into(),
+        429 if v["error"]["code"] == "insufficient_quota" || v["error"]["type"] == "insufficient_quota" => "quota".into(),
         429 => "rate".into(),
         404 => "model".into(),
         500..=599 => "server".into(),
@@ -215,6 +248,15 @@ fn client() -> &'static reqwest::Client {
             .build()
             .expect("http client")
     })
+}
+
+/// Connection-level failures read as "no internet"; anything else keeps the (key-free) reason.
+fn net_error(e: reqwest::Error) -> String {
+    if e.is_connect() || e.is_timeout() || e.is_request() {
+        "net".into()
+    } else {
+        format!("other:{}", e.without_url())
+    }
 }
 
 fn cancelled() -> &'static Mutex<HashSet<String>> {
@@ -319,7 +361,7 @@ pub async fn chat_test_key(provider: Provider) -> Result<(), String> {
     let resp = req
         .send()
         .await
-        .map_err(|e| redact_key(&format!("other:{}", e.without_url()), &key))?;
+        .map_err(|e| redact_key(&net_error(e), &key))?;
     let status = resp.status().as_u16();
     crate::diagnostics::log(&format!("chat: {} status {}", provider.id(), status));
     if (200..300).contains(&status) {
@@ -415,6 +457,18 @@ async fn send_inner(
     Ok(())
 }
 
+/// Emits the delta of one SSE line; a provider error inside the stream ends it with that code.
+fn on_line(window: &Window, id: &str, p: Provider, line: &str, got_text: &mut bool) -> Result<(), String> {
+    if let Some(e) = parse_sse_error(p, line) {
+        return Err(e);
+    }
+    if let Some(t) = parse_sse_line(p, line) {
+        *got_text = true;
+        window.emit_to(window.label(), "chat-delta", json!({"id": id, "text": t})).ok();
+    }
+    Ok(())
+}
+
 /// Streams one reply; Ok(true) = cancelled, Err = error code.
 async fn stream(
     window: &Window,
@@ -433,7 +487,7 @@ async fn stream(
         req = req.header(k, v);
     }
     let mut resp = match guarded(id, req.send()).await {
-        Ok(r) => r.map_err(|e| format!("other:{}", e.without_url()))?,
+        Ok(r) => r.map_err(net_error)?,
         Err(Stop::Cut) => return Ok(true),
         Err(Stop::Idle) => return Err("server".into()),
     };
@@ -447,11 +501,10 @@ async fn stream(
         };
         return Err(friendly_error(status, &body));
     }
-    let label = window.label();
-    let (mut line_buf, mut carry) = (String::new(), Vec::<u8>::new());
+    let (mut line_buf, mut carry, mut got_text) = (String::new(), Vec::<u8>::new(), false);
     loop {
         let chunk = match guarded(id, resp.chunk()).await {
-            Ok(r) => r.map_err(|e| format!("other:{}", e.without_url()))?,
+            Ok(r) => r.map_err(net_error)?,
             Err(Stop::Cut) => return Ok(true),
             Err(Stop::Idle) => return Err("server".into()),
         };
@@ -465,13 +518,12 @@ async fn stream(
         let text = String::from_utf8_lossy(&carry[..valid]).into_owned();
         carry.drain(..valid);
         for line in feed(&mut line_buf, &text) {
-            if let Some(t) = parse_sse_line(p, &line) {
-                window.emit_to(label, "chat-delta", json!({"id": id, "text": t})).ok();
-            }
+            on_line(window, id, p, &line, &mut got_text)?;
         }
     }
-    if let Some(t) = parse_sse_line(p, line_buf.trim()) {
-        window.emit_to(label, "chat-delta", json!({"id": id, "text": t})).ok();
+    on_line(window, id, p, line_buf.trim(), &mut got_text)?;
+    if !got_text {
+        return Err("noreply".into());
     }
     Ok(false)
 }
@@ -520,6 +572,7 @@ mod tests {
         let (_, _, body) = build_request(Provider::Openai, "k", &turns(), &[pdf()]);
         assert_eq!(body["input"][1]["content"][0]["type"], "output_text");
         assert_eq!(body["input"][2]["content"][1]["type"], "input_file");
+        assert_eq!(body["store"], false);
     }
 
     #[test]
@@ -559,6 +612,38 @@ mod tests {
         assert_eq!(friendly_error(404, ""), "model");
         assert_eq!(friendly_error(503, ""), "server");
         assert_eq!(friendly_error(400, r#"{"error":{"message":"Bad thing"}}"#), "other:Bad thing");
+        // Gemini array-wrapped body
+        assert_eq!(friendly_error(400, r#"[{"error":{"code":400,"message":"API key not valid. Please pass a valid API key."}}]"#), "key");
+        // OpenAI out of credit is not a rate limit
+        assert_eq!(friendly_error(429, r#"{"error":{"message":"You exceeded your current quota","type":"insufficient_quota","code":"insufficient_quota"}}"#), "quota");
+        assert_eq!(friendly_error(429, r#"{"error":{"code":"rate_limit_exceeded"}}"#), "rate");
+    }
+
+    #[test]
+    fn parse_sse_error_per_provider() {
+        let a = r#"data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}"#;
+        let a2 = r#"data: {"type":"error","error":{"type":"rate_limit_error","message":"x"}}"#;
+        assert_eq!(parse_sse_error(Provider::Anthropic, a).as_deref(), Some("server"));
+        assert_eq!(parse_sse_error(Provider::Anthropic, a2).as_deref(), Some("rate"));
+        let o = r#"data: {"type":"response.failed","response":{"error":{"code":"server_error","message":"x"}}}"#;
+        let o2 = r#"data: {"type":"error","code":"insufficient_quota","message":"x"}"#;
+        assert_eq!(parse_sse_error(Provider::Openai, o).as_deref(), Some("server"));
+        assert_eq!(parse_sse_error(Provider::Openai, o2).as_deref(), Some("quota"));
+        let g = r#"data: {"error":{"code":503,"message":"The model is overloaded","status":"UNAVAILABLE"}}"#;
+        let g2 = r#"data: {"promptFeedback":{"blockReason":"SAFETY"}}"#;
+        let g3 = r#"data: {"candidates":[{"finishReason":"SAFETY"}]}"#;
+        assert_eq!(parse_sse_error(Provider::Gemini, g).as_deref(), Some("server"));
+        assert_eq!(parse_sse_error(Provider::Gemini, g2).as_deref(), Some("blocked"));
+        assert_eq!(parse_sse_error(Provider::Gemini, g3).as_deref(), Some("blocked"));
+        // normal deltas (also a final Gemini chunk that carries text) are not errors
+        let gd = r#"data: {"candidates":[{"content":{"parts":[{"text":"Mer"}]},"finishReason":"SAFETY"}]}"#;
+        assert_eq!(parse_sse_error(Provider::Gemini, gd), None);
+        assert_eq!(parse_sse_error(Provider::Gemini, r#"data: {"candidates":[{"content":{"parts":[{"text":"Mer"}]}}]}"#), None);
+        assert_eq!(parse_sse_error(Provider::Anthropic, r#"data: {"type":"content_block_delta","delta":{"text":"Mer"}}"#), None);
+        assert_eq!(parse_sse_error(Provider::Openai, r#"data: {"type":"response.output_text.delta","delta":"Mer"}"#), None);
+        for p in [Provider::Gemini, Provider::Anthropic, Provider::Openai] {
+            assert_eq!(parse_sse_error(p, "event: ping"), None);
+        }
     }
 
     #[test]

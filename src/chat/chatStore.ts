@@ -33,9 +33,14 @@ export function loadChats(): Chat[] {
       provider: ["gemini", "anthropic", "openai"].includes(c.provider) ? c.provider : "gemini",
       title: typeof c.title === "string" ? c.title : "",
       updated: typeof c.updated === "number" ? c.updated : 0,
-      messages: c.messages.filter(
-        (m: any) => m && typeof m.text === "string" && (m.role === "user" || m.role === "assistant"),
-      ),
+      messages: c.messages
+        .filter((m: any) => m && typeof m.text === "string" && (m.role === "user" || m.role === "assistant"))
+        .map((m: any) => {
+          // files must be string[]: historyForApi calls join() on it
+          if (m.files === undefined || (Array.isArray(m.files) && m.files.every((f: unknown) => typeof f === "string"))) return m;
+          const { files: _drop, ...rest } = m;
+          return rest;
+        }),
     }));
 }
 
@@ -83,8 +88,8 @@ export function finishMessage(chat: Chat, state: "done" | "cut" | "error", error
   const msgs = chat.messages.slice();
   const last = msgs[msgs.length - 1];
   if (!last || last.role !== "assistant") {
-    if (state !== "error") return chat;
-    msgs.push({ role: "assistant", text: "", state, error });
+    if (state === "done") return chat;
+    msgs.push({ role: "assistant", text: "", state, ...(error ? { error } : {}) }); // Stop before the first token still shows its note
   } else {
     msgs[msgs.length - 1] = { ...last, state, ...(error ? { error } : {}) };
   }

@@ -69,7 +69,9 @@ export function AiChatTab() {
       setResult(t("chat.set.testOk"));
     } catch (e) {
       const code = String(e);
-      setResult(code.startsWith("other:") ? `${t("chat.err.other")} ${code.slice(6)}` : t(`chat.err.${code}`));
+      const known = ["key", "rate", "model", "server", "nokey", "net", "blocked", "noreply", "quota"];
+      const detail = code.replace(/^other:/, "");
+      setResult(known.includes(code) ? t(`chat.err.${code}`) : detail ? `${t("chat.err.other")} ${detail}` : t("chat.err.other").replace(/\s*:\s*$/, ""));
     }
     setBusy(false);
   };

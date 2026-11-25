@@ -51,6 +51,19 @@ d = finishMessage(d, "cut");
 const last = d.messages[d.messages.length - 1];
 eq([last.role, last.text, last.state], ["assistant", "merhaba", "cut"], "delta + cut");
 
+// Stop before the first token: empty assistant message marked cut
+let e = addUserMessage(newChat("gemini"), "hi", []);
+e = finishMessage(e, "cut");
+eq(e.messages.map((m) => [m.role, m.text, m.state]), [["user", "hi", undefined], ["assistant", "", "cut"]], "cut before first token");
+eq(finishMessage(addUserMessage(newChat("gemini"), "hi", []), "done").messages.length, 1, "done without reply adds nothing");
+
+// malformed files field: repaired, historyForApi must not throw
+mem.set("nectar-chat-history", JSON.stringify([{ id: "f", provider: "gemini", title: "", updated: 1, messages: [
+  { role: "user", text: "a", files: "x.pdf" }, { role: "user", text: "b", files: [1] }, { role: "user", text: "c", files: ["ok.txt"] }] }]));
+const fl = loadChats();
+eq(fl[0].messages.map((m) => m.files), [undefined, undefined, ["ok.txt"]], "bad files dropped");
+historyForApi(fl[0]);
+
 eq(titleOf("çok uzun bir başlık ".repeat(5)).length, 40, "title 40");
 eq(titleOf("ilk\nikinci"), "ilk", "title first line");
 

@@ -20,7 +20,7 @@ import { renderMarkdown } from "../chat/markdown";
 type Provider = Chat["provider"];
 const PROVIDERS: Provider[] = ["gemini", "anthropic", "openai"];
 const PROVIDER_NAME: Record<Provider, string> = { gemini: "Gemini", anthropic: "Claude", openai: "ChatGPT" };
-const KNOWN_ERRORS = ["key", "rate", "model", "server", "nokey", "empty"];
+const KNOWN_ERRORS = ["key", "rate", "model", "server", "nokey", "empty", "net", "blocked", "noreply", "quota"];
 
 // Read at send time so a provider switch in Settings applies to the next message.
 const readProvider = (): Provider => {
@@ -32,8 +32,12 @@ const baseName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? 
 function errorText(t: ReturnType<typeof useT>, code: string): string {
   if (KNOWN_ERRORS.includes(code)) return t(`chat.err.${code}`);
   const file = /^file:(\w+):(.*)$/.exec(code);
-  if (file) return file[1] === "count" ? t("chat.err.fileCount") : t("chat.err.file", { name: file[2] });
-  return `${t("chat.err.other")} ${code.replace(/^other:/, "")}`.trim();
+  if (file) {
+    const k = { count: "fileCount", type: "fileType", size: "fileSize", read: "fileRead" }[file[1]];
+    return k ? t(`chat.err.${k}`, { name: file[2] }) : t("chat.err.file", { name: file[2] });
+  }
+  const detail = code.replace(/^other:/, "");
+  return detail ? `${t("chat.err.other")} ${detail}` : t("chat.err.other").replace(/\s*:\s*$/, "");
 }
 
 type Props = { open: boolean; pendingFiles: string[]; onFilesConsumed: () => void; onClose: () => void };
@@ -246,6 +250,9 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
               )}
             </div>
           ))
+        )}
+        {busy && messages[messages.length - 1]?.role === "user" && (
+          <div className="chat-msg assistant"><span className="chat-typing">…</span></div>
         )}
       </div>
 
