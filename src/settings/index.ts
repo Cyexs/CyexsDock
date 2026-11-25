@@ -4,6 +4,7 @@ export { GeneralTab } from "./GeneralTab";
 export { AppearanceTab } from "./AppearanceTab";
 export { NotchTab } from "./NotchTab";
 export { CalendarSyncPage } from "./CalendarSyncPage";
+export { AiChatTab } from "./AiChatTab";
 export { DockTab } from "./DockTab";
 export { OverlaysTab } from "./OverlaysTab";
 export { ProcessesTab } from "./ProcessesTab";

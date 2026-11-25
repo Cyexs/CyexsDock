@@ -23,18 +23,18 @@ function inline(s: string, key: string): ReactNode[] {
 }
 
 // plain function (not a component) so the tree holds a real <pre> element
-function codeBlock(code: string, key: number): ReactNode {
+function codeBlock(code: string, key: number, copyLabel: string): ReactNode {
   return (
     <pre key={key}>
       <button type="button" onClick={() => void navigator.clipboard?.writeText(code)}>
-        Kopyala
+        {copyLabel}
       </button>
       <code>{code}</code>
     </pre>
   );
 }
 
-export function renderMarkdown(text: string): ReactNode {
+export function renderMarkdown(text: string, copyLabel = "Copy"): ReactNode {
   const lines = text.split("\n");
   const out: ReactNode[] = [];
   let para: string[] = [];
@@ -59,7 +59,7 @@ export function renderMarkdown(text: string): ReactNode {
       const code: string[] = [];
       // an unclosed fence (streaming) runs to the end of the text
       for (i++; i < lines.length && !/^\s*```/.test(lines[i]); i++) code.push(lines[i]);
-      out.push(codeBlock(code.join("\n"), n()));
+      out.push(codeBlock(code.join("\n"), n(), copyLabel));
       continue;
     }
     const h = /^(#{1,3})\s+(.*)$/.exec(line);

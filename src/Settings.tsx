@@ -4,7 +4,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Effect, EffectState } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Settings, Palette, PanelTop, Monitor, Layers, Info, Bug } from "lucide-react";
+import { Settings, Palette, PanelTop, Monitor, Layers, Info, Bug, MessageCircle } from "lucide-react";
 import { WindowControls } from "./components/WindowControls";
 import {
   useSettings,
@@ -15,6 +15,7 @@ import {
   DockTab,
   OverlaysTab,
   AboutTab,
+  AiChatTab,
   DiagnosticsTab,
 } from "./settings/index";
 import type { SettingsTab } from "./settings/index";
@@ -32,6 +33,7 @@ const TABS: { id: SettingsTab; labelKey: string; icon: typeof Settings }[] = [
   { id: "notch", labelKey: "tabs.notch", icon: PanelTop },
   { id: "dock", labelKey: "tabs.dock", icon: Monitor },
   { id: "overlays", labelKey: "tabs.overlays", icon: Layers },
+  { id: "ai", labelKey: "settings.tab.ai", icon: MessageCircle },
   { id: "about", labelKey: "tabs.about", icon: Info },
   { id: "diagnostics", labelKey: "tabs.diagnostics", icon: Bug },
 ];
@@ -80,7 +82,7 @@ function SettingsApp() {
 
   useEffect(() => {
     const unlisten = listen<string>("settings-navigate", (e) => {
-      if (e.payload === "calendar-sync") setActiveTab("calendar-sync");
+      if (e.payload === "calendar-sync" || e.payload === "ai") setActiveTab(e.payload);
     });
     return () => {
       unlisten.then((fn) => fn());
@@ -185,6 +187,7 @@ function SettingsApp() {
               handleScaleChange={settings.handleScaleChange}
             />
           )}
+          {!query.trim() && activeTab === "ai" && <AiChatTab />}
           {!query.trim() && activeTab === "calendar-sync" && <CalendarSyncPage onBack={() => setActiveTab("notch")} />}
           {!query.trim() && activeTab === "notch" && (
             <NotchTab

@@ -37,6 +37,7 @@ export const SEARCH_ENTRIES: SearchEntry[] = [
   ...group("about", [
     "about.autoUpdate", "about.prerelease", "about.update.check", "about.tour", "about.export", "about.import", "about.reset", "about.uninstall",
   ]),
+  ...group("ai", ["chat.set.provider", "chat.set.key", "chat.set.hotkey", "chat.set.clear"]),
   ...group("diagnostics", [
     "about.diagnostics.copy", "about.logs", "about.hitbox", "about.icons",
   ]),
@@ -49,12 +50,16 @@ export const TAB_KEYS: Record<string, string> = {
   dock: "tabs.dock",
   overlays: "tabs.overlays",
   about: "tabs.about",
+  ai: "settings.tab.ai",
   diagnostics: "tabs.diagnostics",
 };
 
 export const TAB_ENTRIES: SearchEntry[] = Object.keys(TAB_KEYS).map((tab) => ({ key: TAB_KEYS[tab], tab: tab as SettingsTab }));
 
 export const KEYWORDS: Record<string, string> = {
+  "chat.set.key": "api gemini claude chatgpt openai anthropic token password",
+  "chat.set.provider": "ai assistant model gemini claude chatgpt",
+  "chat.set.clear": "history delete chats",
   "general.launchAtLogin": "startup boot autostart start with windows run on startup login",
   "general.ramSaver": "memory ram performance lag cpu slow",
   "general.ramUltra": "memory ram gpu performance lag",

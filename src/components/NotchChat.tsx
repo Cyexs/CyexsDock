@@ -234,7 +234,7 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
                 </>
               ) : (
                 <>
-                  {m.text ? <div className="chat-md">{renderMarkdown(m.text)}</div> : m.state === "streaming" && <span className="chat-typing">…</span>}
+                  {m.text ? <div className="chat-md">{renderMarkdown(m.text, t("chat.copy"))}</div> : m.state === "streaming" && <span className="chat-typing">…</span>}
                   {m.state === "cut" && <div className="chat-note">{t("chat.cut")}</div>}
                   {m.state === "error" && m.error && <div className="chat-note">{errorText(t, m.error)}</div>}
                   {m.text && m.state !== "streaming" && (
