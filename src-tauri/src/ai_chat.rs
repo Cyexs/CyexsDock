@@ -1,8 +1,16 @@
 //! AI chat: pure provider request building, SSE parsing and error mapping.
 #![allow(dead_code)] // consumed by later tasks (HTTP commands, UI)
 
+use std::collections::{HashMap, HashSet};
+use std::io::Read;
+use std::path::Path;
+use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
+
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tauri::{Emitter, Window};
 
 pub const SYSTEM_PROMPT: &str = "You are a helpful assistant inside CyexsDock, a Windows desktop app. Answer in the language the user writes in. Be concise; use Markdown for lists and code.";
 
@@ -182,6 +190,228 @@ pub fn friendly_error(status: u16, body: &str) -> String {
     }
 }
 
+// ---- keys, files, streaming commands ----
+
+const KEY_SERVICE: &str = "Cyexs AI";
+const MAX_FILES: usize = 5;
+const MAX_BIN: u64 = 10 * 1024 * 1024;
+const MAX_TEXT: usize = 200 * 1024;
+const ALL: [Provider; 3] = [Provider::Gemini, Provider::Anthropic, Provider::Openai];
+
+fn entry(p: Provider) -> Result<keyring::Entry, String> {
+    keyring::Entry::new(KEY_SERVICE, p.id()).map_err(|e| e.to_string())
+}
+
+fn load_key(p: Provider) -> Option<String> {
+    entry(p).ok()?.get_password().ok().filter(|k| !k.is_empty())
+}
+
+fn client() -> &'static reqwest::Client {
+    static C: OnceLock<reqwest::Client> = OnceLock::new();
+    C.get_or_init(|| {
+        reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(20))
+            .build()
+            .expect("http client")
+    })
+}
+
+fn cancelled() -> &'static Mutex<HashSet<String>> {
+    static S: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    S.get_or_init(Default::default)
+}
+
+/// Mime and is_text by extension; Err("type" | "size").
+pub fn classify_file(path: &Path, len: u64) -> Result<(String, bool), String> {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "pdf" => "application/pdf",
+        "txt" | "md" | "csv" | "json" | "log" | "xml" | "html" | "css" | "js" | "ts" | "tsx" | "py" | "rs"
+        | "java" | "c" | "cpp" | "cs" | "go" | "sh" | "ps1" | "yaml" | "yml" | "toml" | "ini" => {
+            return Ok(("text/plain".into(), true));
+        }
+        _ => return Err("type".into()),
+    };
+    if len > MAX_BIN {
+        return Err("size".into());
+    }
+    Ok((mime.into(), false))
+}
+
+fn read_part(path: &str) -> Result<Part, String> {
+    let p = Path::new(path);
+    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("file").to_string();
+    let fail = |r: &str| format!("file:{r}:{name}");
+    let len = std::fs::metadata(p).map_err(|_| fail("read"))?.len();
+    let (mime, is_text) = classify_file(p, len).map_err(|r| fail(&r))?;
+    let f = std::fs::File::open(p).map_err(|_| fail("read"))?;
+    let kind = if is_text {
+        let mut buf = Vec::new();
+        f.take(MAX_TEXT as u64 + 1).read_to_end(&mut buf).map_err(|_| fail("read"))?;
+        let cut = buf.len() > MAX_TEXT;
+        buf.truncate(MAX_TEXT);
+        let mut t = String::from_utf8_lossy(&buf).into_owned();
+        if cut {
+            t.push_str("\n[... truncated]");
+        }
+        PartKind::Text(t)
+    } else {
+        let mut buf = Vec::new();
+        f.take(MAX_BIN + 1).read_to_end(&mut buf).map_err(|_| fail("read"))?;
+        if buf.len() as u64 > MAX_BIN {
+            return Err(fail("size")); // file grew after the metadata check
+        }
+        PartKind::Base64(base64::engine::general_purpose::STANDARD.encode(buf))
+    };
+    Ok(Part { mime, name, kind })
+}
+
+/// Appends `chunk` and returns the complete non-empty lines; the partial tail stays in `buf`.
+fn feed(buf: &mut String, chunk: &str) -> Vec<String> {
+    buf.push_str(chunk);
+    let mut out = Vec::new();
+    while let Some(i) = buf.find('\n') {
+        let line: String = buf.drain(..=i).collect();
+        let line = line.trim_end_matches(['\n', '\r']);
+        if !line.is_empty() {
+            out.push(line.to_string());
+        }
+    }
+    out
+}
+
+#[tauri::command]
+pub async fn chat_key_status() -> HashMap<String, bool> {
+    ALL.iter().map(|p| (p.id().to_string(), load_key(*p).is_some())).collect()
+}
+
+#[tauri::command]
+pub async fn chat_set_key(provider: Provider, key: String) -> Result<(), String> {
+    let e = entry(provider)?;
+    let key = key.trim();
+    if key.is_empty() {
+        return match e.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(err) => Err(err.to_string()),
+        };
+    }
+    e.set_password(key).map_err(|err| redact_key(&err.to_string(), key))
+}
+
+#[tauri::command]
+pub async fn chat_test_key(provider: Provider) -> Result<(), String> {
+    let key = load_key(provider).ok_or("nokey")?;
+    let url = match provider {
+        Provider::Gemini => "https://generativelanguage.googleapis.com/v1beta/models",
+        Provider::Anthropic => "https://api.anthropic.com/v1/models",
+        Provider::Openai => "https://api.openai.com/v1/models",
+    };
+    let (_, headers, _) = build_request(provider, &key, &[], &[]);
+    let mut req = client().get(url);
+    for (k, v) in headers {
+        req = req.header(k, v);
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| redact_key(&format!("other:{}", e.without_url()), &key))?;
+    let status = resp.status().as_u16();
+    crate::diagnostics::log(&format!("chat: {} status {}", provider.id(), status));
+    if (200..300).contains(&status) {
+        return Ok(());
+    }
+    let body = resp.text().await.unwrap_or_default();
+    Err(redact_key(&friendly_error(status, &body), &key))
+}
+
+#[tauri::command]
+pub fn chat_cancel(id: String) {
+    cancelled().lock().unwrap().insert(id);
+}
+
+#[tauri::command]
+pub async fn chat_send(
+    window: Window,
+    id: String,
+    provider: Provider,
+    history: Vec<ChatTurn>,
+    files: Vec<String>,
+) -> Result<(), String> {
+    let key = load_key(provider).ok_or("nokey")?;
+    if files.len() > MAX_FILES {
+        return Err("file:count:".into());
+    }
+    let parts = files.iter().map(|f| read_part(f)).collect::<Result<Vec<_>, _>>()?;
+    if parts.is_empty() && history.iter().all(|t| t.text.trim().is_empty()) {
+        return Err("empty".into());
+    }
+    cancelled().lock().unwrap().remove(&id);
+    let result = stream(&window, &id, provider, &key, &history, &parts).await;
+    cancelled().lock().unwrap().remove(&id);
+    let label = window.label();
+    match result {
+        Ok(true) => window.emit_to(label, "chat-cut", json!({"id": id})),
+        Ok(false) => window.emit_to(label, "chat-done", json!({"id": id})),
+        Err(code) => window.emit_to(label, "chat-error", json!({"id": id, "code": redact_key(&code, &key)})),
+    }
+    .ok();
+    Ok(())
+}
+
+/// Streams one reply; Ok(true) = cancelled, Err = error code.
+async fn stream(
+    window: &Window,
+    id: &str,
+    p: Provider,
+    key: &str,
+    history: &[ChatTurn],
+    parts: &[Part],
+) -> Result<bool, String> {
+    let (url, headers, body) = build_request(p, key, history, parts);
+    let mut req = client().post(url).body(body.to_string());
+    for (k, v) in headers {
+        req = req.header(k, v);
+    }
+    let mut resp = req.send().await.map_err(|e| format!("other:{}", e.without_url()))?;
+    let status = resp.status().as_u16();
+    crate::diagnostics::log(&format!("chat: {} status {}", p.id(), status));
+    if !(200..300).contains(&status) {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(friendly_error(status, &body));
+    }
+    let label = window.label();
+    let (mut line_buf, mut carry) = (String::new(), Vec::<u8>::new());
+    loop {
+        if cancelled().lock().unwrap().contains(id) {
+            return Ok(true);
+        }
+        let Some(chunk) = resp.chunk().await.map_err(|e| format!("other:{}", e.without_url()))? else {
+            break;
+        };
+        carry.extend_from_slice(&chunk);
+        // A multi-byte char may straddle chunks: decode the valid prefix, keep the rest.
+        let valid = match std::str::from_utf8(&carry) {
+            Ok(s) => s.len(),
+            Err(e) => e.valid_up_to(),
+        };
+        let text = String::from_utf8_lossy(&carry[..valid]).into_owned();
+        carry.drain(..valid);
+        for line in feed(&mut line_buf, &text) {
+            if let Some(t) = parse_sse_line(p, &line) {
+                window.emit_to(label, "chat-delta", json!({"id": id, "text": t})).ok();
+            }
+        }
+    }
+    if let Some(t) = parse_sse_line(p, line_buf.trim()) {
+        window.emit_to(label, "chat-delta", json!({"id": id, "text": t})).ok();
+    }
+    Ok(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,5 +533,25 @@ mod tests {
                 assert!(blocks.iter().all(|b| b["text"] != ""), "{p:?}");
             }
         }
+    }
+
+    #[test]
+    fn classify_file_by_extension_and_size() {
+        use std::path::Path;
+        let mb = 1024 * 1024;
+        assert_eq!(classify_file(Path::new("a.PNG"), 1024), Ok(("image/png".to_string(), false)));
+        assert_eq!(classify_file(Path::new("b.pdf"), 11 * mb), Err("size".to_string()));
+        assert_eq!(classify_file(Path::new("c.exe"), 10), Err("type".to_string()));
+        assert_eq!(classify_file(Path::new("d.md"), mb), Ok(("text/plain".to_string(), true)));
+    }
+
+    #[test]
+    fn sse_lines_split_across_chunks() {
+        let mut buf = String::new();
+        assert!(feed(&mut buf, "data: {\"a\"").is_empty());
+        assert_eq!(feed(&mut buf, ":1}
+
+"), vec!["data: {\"a\":1}".to_string()]);
+        assert!(buf.is_empty());
     }
 }
