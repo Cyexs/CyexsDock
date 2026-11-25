@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { AnimatePresence, Reorder } from "framer-motion";
 import { Trash2 } from "lucide-react";
@@ -34,11 +34,15 @@ type ShelfCallbacks = {
   onDragEnter: () => void;
   onDragLeave: () => void;
   onDrop: () => void;
+  /** File drop on this notch at client physical pixels; true = taken (goes to chat, not the shelf). */
+  takeDrop?: (paths: string[], x: number, y: number) => boolean;
 };
 
 export function useShelf(windowLabel: string, enabled: boolean, persist: boolean, cb: ShelfCallbacks) {
   const [items, setItems] = useState<ShelfItem[]>(() => (persist ? readSaved() : []));
   const [dropActive, setDropActive] = useState(false);
+  const [dropFiles, setDropFiles] = useState(false);
+  const takenRef = useRef(new Set<string>());
   const cbRef = useRef(cb);
   cbRef.current = cb;
 
@@ -106,9 +110,10 @@ export function useShelf(windowLabel: string, enabled: boolean, persist: boolean
     invoke("setup_shelf_drop").catch(() => { });
 
     const unlistens: Promise<() => void>[] = [
-      listen<{ label: string }>("shelf-drag-enter", (e) => {
+      listen<{ label: string; paths?: string[] }>("shelf-drag-enter", (e) => {
         if (e.payload.label === windowLabel) {
           setDropActive(true);
+          setDropFiles(!!e.payload.paths);
           cbRef.current.onDragEnter();
         }
       }),
@@ -118,10 +123,26 @@ export function useShelf(windowLabel: string, enabled: boolean, persist: boolean
           cbRef.current.onDragLeave();
         }
       }),
-      listen<{ label: string; paths?: string[]; text?: string }>("shelf-drag-drop", (e) => {
-        add(e.payload.paths, e.payload.text);
+      listen<{ label: string; paths?: string[]; text?: string; x?: number; y?: number }>("shelf-drag-drop", (e) => {
+        const { label, paths, text, x, y } = e.payload;
+        const mine = label === windowLabel;
         setDropActive(false);
-        if (e.payload.label === windowLabel) cbRef.current.onDrop();
+        const key = `${label}|${paths?.join("|")}`;
+        if (mine && paths && x !== undefined && y !== undefined && cbRef.current.takeDrop?.(paths, x, y)) {
+          emit("shelf-drop-taken", { key }).catch(() => { });
+          return;
+        }
+        if (!mine && paths) {
+          // Another notch may hand this drop to its chat; wait briefly for its word before adding.
+          setTimeout(() => { if (!takenRef.current.delete(key)) add(paths); }, 300);
+          return;
+        }
+        add(paths, text);
+        if (mine) cbRef.current.onDrop();
+      }),
+      listen<{ key: string }>("shelf-drop-taken", (e) => {
+        takenRef.current.add(e.payload.key);
+        setTimeout(() => takenRef.current.delete(e.payload.key), 1000);
       }),
     ];
     return () => { unlistens.forEach((u) => u.then((fn) => fn())); };
@@ -130,12 +151,13 @@ export function useShelf(windowLabel: string, enabled: boolean, persist: boolean
   const remove = useCallback((id: string) => setItems((prev) => prev.filter((i) => i.id !== id)), []);
   const clear = useCallback(() => setItems([]), []);
 
-  return { items, dropActive, reorder: setItems, remove, clear };
+  return { items, dropActive, dropFiles, reorder: setItems, remove, clear };
 }
 
 type Props = {
   items: ShelfItem[];
   dropActive: boolean;
+  askZone?: boolean;
   onReorder: (items: ShelfItem[]) => void;
   onRemove: (id: string) => void;
   onClear: () => void;
@@ -150,7 +172,7 @@ const extOf = (name: string) => {
   return dot > 0 && name.length - dot <= 5 ? name.slice(dot + 1).toUpperCase() : "";
 };
 
-export function NotchShelf({ items, dropActive, onReorder, onRemove, onClear, onDragOutStart, onDragOutEnd }: Props) {
+export function NotchShelf({ items, dropActive, askZone, onReorder, onRemove, onClear, onDragOutStart, onDragOutEnd }: Props) {
   const t = useT();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [resetKey, setResetKey] = useState(0);
@@ -189,7 +211,8 @@ export function NotchShelf({ items, dropActive, onReorder, onRemove, onClear, on
   const previewText = (item: ShelfItem) => item.preview ?? (item.kind === "text" ? item.text?.slice(0, 160) : null);
 
   return (
-    <div ref={panelRef} className={`shelf-panel${dropActive ? " drop-active" : ""}`} onClick={(e) => e.stopPropagation()}>
+    <div ref={panelRef} className={`shelf-panel${dropActive ? " drop-active" : ""}${dropActive && askZone ? " with-ask" : ""}`} onClick={(e) => e.stopPropagation()}>
+      {dropActive && askZone && <div className="shelf-ask-zone">{t("chat.askZone")}</div>}
       {items.length === 0 ? (
         <div className="shelf-empty">{t("shelf.empty")}</div>
       ) : (

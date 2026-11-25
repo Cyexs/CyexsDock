@@ -27,6 +27,7 @@ import { NotchTour, TOUR_STEPS } from "./components/NotchTour";
 import { useStopwatch } from "./hooks/useStopwatch";
 import { t as translate, useT } from "./i18n";
 import { NotchShelf, useShelf } from "./components/NotchShelf";
+import { NotchChat } from "./components/NotchChat";
 import { parseCcLayout, parsePanelOrder, resolveCcLayout, type CcKind } from "./panelOrder";
 import { NotchProgressBorder } from "./components/NotchProgressBorder";
 import { SurfaceShape } from "./components/SurfaceShape";
@@ -69,6 +70,7 @@ import {
   Coins,
   MoonStar,
   ArrowLeftRight,
+  MessageCircle,
 } from "lucide-react";
 import { setVisibleInterval } from "./hooks/visibleInterval";
 
@@ -568,7 +570,7 @@ function App() {
   const dockModeInitial = useRef(true);
   const notchModeInitial = useRef(true);
 
-  const [nectarMode, setCyexsMode] = useState<'music' | 'calendar' | 'command-center' | 'status' | 'shelf' | 'agent'>('status');
+  const [nectarMode, setCyexsMode] = useState<'music' | 'calendar' | 'command-center' | 'status' | 'shelf' | 'agent' | 'chat'>('status');
   const [tourActive, setTourActive] = useState(false);
 
   const isAnyInteraction = isHovered || isNotchHovered || isEdgeHovered;
@@ -1269,6 +1271,7 @@ function App() {
   };
 
   const handleWheel = (e: React.WheelEvent) => {
+    if (nectarMode === 'chat') return; // the chat scrolls its own messages
     const target = e.target as HTMLElement;
     const scroller = target.closest('.cal-scroll, .cv-list') as HTMLElement | null;
     if (scroller && scroller.scrollHeight > scroller.clientHeight + 1) return;
@@ -1917,6 +1920,7 @@ function App() {
       return;
     }
     if (nectarMode === 'agent') { const first = availableNotchModes()[0]; if (first) setCyexsMode(first); return; }
+    if (nectarMode === 'chat') return;
     const modes = availableNotchModes();
     const index = modes.indexOf(nectarMode);
     if (index === -1 || modes.length < 2) return;
@@ -2069,7 +2073,39 @@ function App() {
     },
     onDragLeave: collapseAfterShelfDrag,
     onDrop: () => setCyexsMode('shelf'),
+    takeDrop: (paths, x, y) => {
+      const r = document.querySelector('.shelf-ask-zone')?.getBoundingClientRect();
+      const px = x / window.devicePixelRatio, py = y / window.devicePixelRatio;
+      if (!r || px < r.left || px > r.right || py < r.top || py > r.bottom) return false;
+      setChatFiles(paths);
+      openChat();
+      return true;
+    },
   });
+
+  // Chat panel: opened by the chat hotkey, the control-center button or a drop on "Soru sor".
+  const [chatFiles, setChatFiles] = useState<string[]>([]);
+  const clearChatFiles = useCallback(() => setChatFiles([]), []);
+  const openChat = () => {
+    clearTimeout(shelfCollapseTimer.current);
+    setIsHovered(true);
+    setCyexsMode('chat');
+  };
+  const closeChat = () => {
+    setCyexsMode(mediaInfo.has_media && isPlaying && settingsMusicCompactNotch ? 'music' : 'status');
+    // Stay expanded when the pointer is on the notch (close button), like a normal hover.
+    invoke<boolean>('pointer_over_notch').catch(() => false).then((over) => {
+      if (!over) { setIsHovered(false); setIsNotchHovered(false); }
+    });
+  };
+  const chatHotkeyRef = useRef(() => {});
+  chatHotkeyRef.current = () => (nectarMode === 'chat' ? closeChat() : openChat());
+  useEffect(() => {
+    // The hotkey is app-wide; only the primary notch answers it.
+    if (windowLabel !== 'main') return;
+    const unlisten = listen("chat-hotkey", () => chatHotkeyRef.current());
+    return () => { unlisten.then(f => f()); };
+  }, [windowLabel]);
 
   useEffect(() => {
     if ((nectarMode === 'command-center' && !panelControlCenter) || (nectarMode === 'shelf' && !panelShelf)) {
@@ -2110,6 +2146,7 @@ function App() {
   const agentWings = !!agentActivity && isNotchWindow && !isHovered && (nectarMode === 'status' || isMusicMode);
 
   const getDynamicWidth = () => {
+    if (nectarMode === 'chat') return 460;
     if (notif) return 420;
     const widgetsRowWidth = isHovered && statusWidgets.left.length + statusWidgets.right.length > 0
       ? Math.min(200 + Math.max(statusWidgets.left.length, statusWidgets.right.length) * 2 * 65, 530) + dualClockExtra
@@ -2146,6 +2183,7 @@ function App() {
     if (!isExpanded || isHidden) {
       return isImpacted ? 28.9 : 44.2;
     }
+    if (nectarMode === 'chat') return 420;
     if (notif) {
       // Rough wrap estimate (~42 chars per body line, ~38 per title line) so the notch grows to fit the text.
       const lines = Math.max(1, Math.ceil(notif.body.length / 42)) + Math.max(0, Math.ceil(notif.title.length / 38) - 1);
@@ -2185,7 +2223,7 @@ function App() {
 
   const isCalendarMode = nectarMode === 'calendar';
   // Calendar, command center and shelf are big, dense panels; glass styles thicken the fill for them
-  const isPanelOpen = isHovered && (isCalendarMode || nectarMode === 'command-center' || nectarMode === 'shelf');
+  const isPanelOpen = isHovered && (isCalendarMode || nectarMode === 'command-center' || nectarMode === 'shelf' || nectarMode === 'chat');
 
   // Album tints the whole notch, collapsed pill included. The expanded state
   // reads --nectar-bg-expanded and the muted/border vars live on :root, so all
@@ -2264,7 +2302,7 @@ function App() {
         onHoverStart={() => {
           clearTimeout(shelfCollapseTimer.current);
           setIsHovered(true);
-          if (nectarMode !== 'shelf') {
+          if (nectarMode !== 'shelf' && nectarMode !== 'chat') {
             const remembered = settingsRememberMode ? rememberedModeRef.current : null;
             if (agentNeedsYou) setCyexsMode('agent');
             else if (remembered && availableNotchModes().includes(remembered)) setCyexsMode(remembered);
@@ -2272,7 +2310,7 @@ function App() {
           }
         }}
         onHoverEnd={() => {
-          if (tourActive) return;
+          if (tourActive || nectarMode === 'chat') return;
           if (nectarMode === 'shelf' && shelfHoldsOpen()) {
             deferShelfCollapse();
             return;
@@ -2313,7 +2351,7 @@ function App() {
             >
               {/* Faster Waiting Transition Area */}
               <AnimatePresence mode="wait">
-                {notif ? (
+                {notif && nectarMode !== 'chat' ? (
                   <motion.div
                     key={`notif-card-${notif.app}-${notif.title}-${notif.body}`}
                     className={`notif-card${isHovered ? " expanded" : ""}`}
@@ -2873,6 +2911,15 @@ function App() {
                     {/* Circular Actions Row */}
                     <div className="cc-circular-actions-row" style={ccResolved.buttons.length ? undefined : { display: 'none' }}>
                       <button
+                        className="cc-circular-btn"
+                        style={ccStyle("buttons", "ai-chat")}
+                        {...tip(t("cc.aiChat"))}
+                        aria-label={t("cc.aiChat")}
+                        onClick={(e) => { e.stopPropagation(); openChat(); }}
+                      >
+                        <MessageCircle size={16} strokeWidth={2} />
+                      </button>
+                      <button
                         className={`cc-circular-btn ${dndActive ? 'active' : ''}`}
                         style={ccStyle("buttons", "dnd")}
                         {...tip(t("cc.dnd"))}
@@ -2992,6 +3039,7 @@ function App() {
                     <NotchShelf
                       items={shelf.items}
                       dropActive={shelf.dropActive}
+                      askZone={shelf.dropFiles}
                       onReorder={shelf.reorder}
                       onRemove={shelf.remove}
                       onClear={shelf.clear}
@@ -3007,6 +3055,8 @@ function App() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {isNotchWindow && <NotchChat open={nectarMode === 'chat'} pendingFiles={chatFiles} onFilesConsumed={clearChatFiles} onClose={closeChat} />}
 
               <AnimatePresence>
                 {tourActive && (

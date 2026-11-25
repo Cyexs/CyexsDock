@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Bell, BatteryCharging, Bluetooth, ChevronUp, Moon, PanelBottom, PanelTop, RotateCcw, RotateCw, Settings, Sun, Volume2, Wifi, X } from "lucide-react";
+import { Bell, BatteryCharging, Bluetooth, ChevronUp, MessageCircle, Moon, PanelBottom, PanelTop, RotateCcw, RotateCw, Settings, Sun, Volume2, Wifi, X } from "lucide-react";
 import type { ComponentType } from "react";
 import { resolveCcLayout, type CcKind, type CcLayout } from "../panelOrder";
 import { useT } from "../i18n";
@@ -25,6 +25,7 @@ const ITEMS: Record<string, { kind: CcKind; icon: Icon }> = {
   "dock-mode": { kind: "tiles", icon: PanelBottom },
   bluetooth: { kind: "tiles", icon: Bluetooth },
   "notch-mode": { kind: "tiles", icon: PanelTop },
+  "ai-chat": { kind: "buttons", icon: MessageCircle },
   dnd: { kind: "buttons", icon: Moon },
   "battery-saver": { kind: "buttons", icon: BatteryCharging },
   tray: { kind: "buttons", icon: ChevronUp },

@@ -226,7 +226,7 @@ impl IDropTarget_Impl for ShelfDropTarget_Impl {
         &self,
         pdata: Ref<'_, IDataObject>,
         _keys: MODIFIERKEYS_FLAGS,
-        _pt: &POINTL,
+        pt: &POINTL,
         effect: *mut DROPEFFECT,
     ) -> windows::core::Result<()> {
         if self.dock {
@@ -244,9 +244,12 @@ impl IDropTarget_Impl for ShelfDropTarget_Impl {
                 .and_then(|data| unsafe { ShelfDropTarget::extract(data) });
             match payload {
                 Some(DragPayload::Files(paths, hdrop)) => {
-                    let _ = self
-                        .app
-                        .emit("shelf-drag-drop", serde_json::json!({ "label": self.label, "paths": paths }));
+                    // Client physical pixels: the notch checks whether the drop hit its "Soru sor" zone.
+                    let point = unsafe { self.client_point(pt) };
+                    let _ = self.app.emit(
+                        "shelf-drag-drop",
+                        serde_json::json!({ "label": self.label, "paths": paths, "x": point.x, "y": point.y }),
+                    );
                     unsafe { DragFinish(hdrop) };
                 }
                 Some(DragPayload::Text(text)) => {

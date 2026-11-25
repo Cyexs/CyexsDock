@@ -16,7 +16,7 @@ export function parsePanelOrder(raw: string | null | undefined): PanelId[] | nul
 }
 
 export const CC_TILES = ["network", "dock-mode", "bluetooth", "notch-mode"] as const;
-export const CC_BUTTONS = ["dnd", "battery-saver", "tray", "notifications", "settings", "restart"] as const;
+export const CC_BUTTONS = ["ai-chat", "dnd", "battery-saver", "tray", "notifications", "settings", "restart"] as const;
 export const CC_SLIDERS = ["volume", "brightness"] as const;
 
 export type CcKind = "tiles" | "buttons" | "sliders";
