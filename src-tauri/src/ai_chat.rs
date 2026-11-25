@@ -94,9 +94,16 @@ pub fn build_request(
         .iter()
         .enumerate()
         .map(|(i, t)| {
-            let mut content = vec![text_block(p, &t.role, &t.text)];
+            // Providers reject empty text blocks, so attachment-only turns omit it.
+            let mut content = Vec::new();
+            if !t.text.trim().is_empty() {
+                content.push(text_block(p, &t.role, &t.text));
+            }
             if Some(i) == last_user {
                 content.extend(parts.iter().map(|x| part_block(p, x)));
+            }
+            if content.is_empty() {
+                content.push(text_block(p, &t.role, &t.text)); // never send a block-less turn
             }
             let role = match (p, t.role.as_str()) {
                 (Provider::Gemini, "assistant") => "model",
@@ -258,5 +265,20 @@ mod tests {
         assert_eq!(friendly_error(404, ""), "model");
         assert_eq!(friendly_error(503, ""), "server");
         assert_eq!(friendly_error(400, r#"{"error":{"message":"Bad thing"}}"#), "other:Bad thing");
+    }
+
+    #[test]
+    fn attachment_only_turn_has_no_empty_text_block() {
+        let h = vec![ChatTurn { role: "user".into(), text: "  ".into() }];
+        for (p, arr, key) in [
+            (Provider::Gemini, "contents", "parts"),
+            (Provider::Anthropic, "messages", "content"),
+            (Provider::Openai, "input", "content"),
+        ] {
+            let (_, _, body) = build_request(p, "k", &h, &[png()]);
+            let blocks = body[arr][0][key].as_array().unwrap();
+            assert_eq!(blocks.len(), 1, "{p:?}");
+            assert!(blocks[0].get("text").is_none(), "{p:?}");
+        }
     }
 }
