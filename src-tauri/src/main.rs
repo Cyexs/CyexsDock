@@ -363,7 +363,6 @@ fn main() {
             setup_taskbar_hook();
             start_window_style_guard(app.handle().clone());
             start_large_window_logger(app.handle().clone());
-            setup_audio_visualization(app.handle().clone());
             setup_settings_watcher(app.handle().clone());
             memory_saver::start_reclaim_worker(app.handle().clone());
             {

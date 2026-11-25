@@ -228,50 +228,16 @@ function GreenDownArrowIcon() {
   );
 }
 
+// Bars move while media plays and rest when it stops. No audio capture: reading the output stream
+// made antivirus apps warn about microphone access.
 export const Visualizer = memo(function Visualizer({ isPlaying, bars = 5, height = 20 }: { isPlaying: boolean; bars?: number; height?: number }) {
-  const [audioData, setAudioData] = useState<number[]>(new Array(bars).fill(0.18));
-
-  useEffect(() => {
-    if (!isPlaying) {
-      setAudioData(new Array(bars).fill(0.18));
-      return;
-    }
-
-    // Frames arrive in bursts faster than the screen refreshes; keep the newest and render it
-    // once per frame instead of re-rendering (and restarting the bar springs) for every event.
-    let latest: number[] | null = null;
-    let frame = 0;
-    const unlisten = listen<{ frequencies: number[] }>("audio-visualization", (event) => {
-      // If we receive fewer frequencies than bars, repeat or interpolate
-      // If more, slice
-      let data = event.payload.frequencies;
-      if (data.length > bars) data = data.slice(0, bars);
-      while (data.length < bars) data.push(0.18);
-      latest = data;
-      if (!frame) {
-        frame = requestAnimationFrame(() => {
-          frame = 0;
-          if (latest) setAudioData(latest);
-        });
-      }
-    });
-
-    return () => {
-      unlisten.then(fn => fn());
-      cancelAnimationFrame(frame);
-    };
-  }, [isPlaying, bars]);
-
   return (
     <div className="visualizer-horizontal" style={{ height: `${height}px`, width: `${bars * 6}px` }}>
-      {audioData.map((value, i) => (
+      {Array.from({ length: bars }, (_, i) => (
         <div
           key={i}
-          className="bar-horizontal"
-          style={{
-            transform: `scaleY(${isPlaying ? Math.max(0.2, value) : 0.1})`,
-            opacity: isPlaying ? 0.95 : 0.5,
-          }}
+          className={isPlaying ? "bar-horizontal playing" : "bar-horizontal"}
+          style={isPlaying ? { animationDuration: `${0.7 + ((i * 3) % 5) * 0.12}s`, animationDelay: `${-i * 0.23}s` } : undefined}
         />
       ))}
     </div>

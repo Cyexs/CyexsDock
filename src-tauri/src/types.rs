@@ -7,11 +7,6 @@ pub struct WmiMonitorBrightness {
     pub current_brightness: u8,
 }
 
-#[derive(Clone, Serialize)]
-pub struct AudioVisualizationData {
-    pub frequencies: Vec<f32>,
-}
-
 #[derive(Serialize, Clone)]
 pub struct MediaInfo {
     pub title: String,
