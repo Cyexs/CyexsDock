@@ -71,4 +71,16 @@ eq(types("<img src=x onerror=alert(1)>").includes("img"), false, "no img element
 eq(types("```js\nlet a = 1;").filter((t) => t === "pre").length, 1, "unclosed fence is one pre");
 eq(types("# H\n- a\n- b\n**x** *y* `z` [t](http://u)").includes("a"), false, "no anchors");
 eq(types("1. a\n2. b").includes("ol"), true, "ordered list");
+// merge across notch windows: union by id, newer updated wins
+const { mergeChats } = await import("../src/chat/chatStore.ts");
+const ca = { ...newChat("gemini"), id: "a", updated: 1 };
+const cb = { ...newChat("gemini"), id: "b", updated: 1 };
+const merged = mergeChats([ca, { ...cb, title: "new", updated: 9 }], [cb, { ...ca, title: "mine", updated: 2 }]);
+eq(merged.map((c) => [c.id, c.title]).sort(), [["a", "mine"], ["b", "new"]], "merge keeps both, newer wins");
+
+// one-time CC migration: custom buttons gain the chat button, defaults and existing ones untouched
+const { withChatButton } = await import("../src/panelOrder.ts");
+eq(withChatButton({ buttons: ["dnd"] }), { buttons: ["ai-chat", "dnd"] }, "chat button added to saved layout");
+eq(withChatButton({}), null, "default layout untouched");
+eq(withChatButton({ buttons: ["dnd", "ai-chat"] }), null, "already present untouched");
 console.log("selfcheck-chat OK");

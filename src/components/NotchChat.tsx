@@ -10,6 +10,7 @@ import {
   finishMessage,
   historyForApi,
   loadChats,
+  mergeChats,
   newChat,
   saveChats,
   type Chat,
@@ -49,6 +50,10 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
   const active = useRef<{ send: string; chat: string } | null>(null);
+  const removed = useRef(new Set<string>());
+  // Merge with what other notch windows stored, so their chats are not overwritten; local deletes stay deleted.
+  const persist = (list: Chat[]) =>
+    saveChats(mergeChats(loadChats().filter((c) => !removed.current.has(c.id)), list));
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -84,10 +89,11 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
   }, []);
 
   // Saving on every delta would rewrite the whole history many times a second.
-  useEffect(() => { if (!busy) saveChats(chats); }, [chats, busy]);
+  useEffect(() => { if (!busy) persist(chats); }, [chats, busy]);
 
   useEffect(() => {
     if (!open) return;
+    if (!active.current) setChats(loadChats()); // pick up chats made in another monitor's notch
     setProvider(readProvider());
     invoke<Record<Provider, boolean>>("chat_key_status").then(setKeys).catch(() => setKeys(null));
     invoke("set_window_keyboard_focus", { enabled: true }).catch(() => {}).finally(() => inputRef.current?.focus());
@@ -131,7 +137,7 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
     const next = addUserMessage(chat ?? newChat(p), text, files.map(baseName));
     const all = [next, ...chats.filter((c) => c.id !== next.id)];
     setChats(all);
-    saveChats(all);
+    persist(all);
     setCurrentId(next.id);
     const sent = files;
     setInput("");
@@ -163,6 +169,7 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
   };
 
   const remove = (id: string) => {
+    removed.current.add(id);
     setChats((cs) => cs.filter((c) => c.id !== id));
     if (id === currentId) setCurrentId(null);
   };
@@ -200,7 +207,7 @@ export function NotchChat({ open, pendingFiles, onFilesConsumed, onClose }: Prop
                     </button>
                   </div>
                 ))}
-                <button type="button" className="chat-history-clear" onClick={() => { setChats([]); setCurrentId(null); setHistoryOpen(false); }}>
+                <button type="button" className="chat-history-clear" onClick={() => { chats.forEach((c) => removed.current.add(c.id)); setChats([]); setCurrentId(null); setHistoryOpen(false); }}>
                   {t("chat.deleteAll")}
                 </button>
               </>

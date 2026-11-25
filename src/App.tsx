@@ -28,7 +28,7 @@ import { useStopwatch } from "./hooks/useStopwatch";
 import { t as translate, useT } from "./i18n";
 import { NotchShelf, useShelf } from "./components/NotchShelf";
 import { NotchChat } from "./components/NotchChat";
-import { parseCcLayout, parsePanelOrder, resolveCcLayout, type CcKind } from "./panelOrder";
+import { parseCcLayout, parsePanelOrder, resolveCcLayout, withChatButton, type CcKind } from "./panelOrder";
 import { NotchProgressBorder } from "./components/NotchProgressBorder";
 import { SurfaceShape } from "./components/SurfaceShape";
 import { playAgentSound } from "./agentSounds";
@@ -2098,6 +2098,21 @@ function App() {
       if (!over) { setIsHovered(false); setIsNotchHovered(false); }
     });
   };
+  // Hidden notch (hotkey, fullscreen) must not keep keyboard focus on an invisible textarea.
+  useEffect(() => {
+    if (nectarMode === 'chat' && (isHidden || !isVisible)) closeChat();
+  }, [isHidden, isVisible, nectarMode]);
+  // Saved custom CC layouts predate the chat button: add it once, later removals are respected.
+  useEffect(() => {
+    if (windowLabel !== 'main' || localStorage.getItem("nectar-cc-ai-chat-added")) return;
+    localStorage.setItem("nectar-cc-ai-chat-added", "true");
+    const next = withChatButton(parseCcLayout(localStorage.getItem("nectar-cc-layout")));
+    if (!next) return;
+    const value = JSON.stringify(next);
+    setCcLayout(next);
+    localStorage.setItem("nectar-cc-layout", value);
+    invoke("save_setting", { key: "nectar-cc-layout", value }).catch(() => {});
+  }, [windowLabel]);
   const chatHotkeyRef = useRef(() => {});
   chatHotkeyRef.current = () => (nectarMode === 'chat' ? closeChat() : openChat());
   useEffect(() => {

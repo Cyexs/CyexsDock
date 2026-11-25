@@ -48,6 +48,16 @@ export function saveChats(chats: Chat[]): void {
   }
 }
 
+/** Union by id, newer `updated` wins (ties go to `b`): other notch windows write the same key. */
+export function mergeChats(a: Chat[], b: Chat[]): Chat[] {
+  const byId = new Map<string, Chat>();
+  for (const c of [...a, ...b]) {
+    const old = byId.get(c.id);
+    if (!old || c.updated >= old.updated) byId.set(c.id, c);
+  }
+  return [...byId.values()];
+}
+
 export function newChat(provider: Chat["provider"]): Chat {
   return { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, provider, title: "", updated: Date.now(), messages: [] };
 }

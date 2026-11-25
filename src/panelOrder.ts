@@ -47,6 +47,12 @@ export function parseCcLayout(raw: string | null | undefined): CcLayout {
   }
 }
 
+/** One-time migration: a saved custom buttons list gains the chat button; null = nothing to change. */
+export function withChatButton(layout: CcLayout): CcLayout | null {
+  if (!layout.buttons || layout.buttons.includes("ai-chat")) return null;
+  return { ...layout, buttons: ["ai-chat", ...layout.buttons] };
+}
+
 export function resolveCcLayout(layout: CcLayout): Record<CcKind, string[]> {
   return {
     tiles: layout.tiles ?? [...CC_TILES],
