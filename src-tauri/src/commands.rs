@@ -1312,6 +1312,16 @@ pub(crate) fn browser_web_app_id_from_aumid(id: &str) -> Option<String> {
     None
 }
 
+/// Chrome and Brave shorten the id in the AUMID to its first 10 and last 16 chars ("_crx_" + 26 chars).
+pub(crate) fn short_web_app_id_from_aumid(id: &str) -> Option<String> {
+    let segment = id[id.find("_crx_")? + 5..].split('.').next()?;
+    (segment.len() == 26 && segment.bytes().all(|b| (b'a'..=b'p').contains(&b))).then(|| segment.to_string())
+}
+
+fn web_app_id_matches_short(full: &str, short: &str) -> bool {
+    full.len() == 32 && short.len() == 26 && full.starts_with(&short[..10]) && full.ends_with(&short[10..])
+}
+
 /// True if an AUMID belongs to a browser-hosted app (PWA) and not the browser itself.
 /// Brave uses a shortened id, so the _crx_ marker is checked directly.
 pub(crate) fn is_browser_pwa_aumid(id: &str) -> bool {
@@ -1329,7 +1339,7 @@ unsafe fn pwa_icon_for_window(hwnd: HWND, process_path: &str) -> Option<String> 
             let mut pid = 0u32;
             windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(hwnd, Some(&mut pid));
             if pid == 0 { return None; }
-            if let Some(app_id) = browser_web_app_id_from_aumid(&id) {
+            if let Some(app_id) = browser_web_app_id_from_aumid(&id).or_else(|| short_web_app_id_from_aumid(&id)) {
                 if let Some(icon_path) = find_browser_pwa_icon(process_path, &format!("--app-id={}", app_id)) {
                     if let Some(icon) = crate::utils::image_file_to_base64(&icon_path) { return Some(icon); }
                 }
@@ -1391,6 +1401,16 @@ fn find_browser_pwa_icon(executable_path: &str, args: &str) -> Option<String> {
         for prof in profiles {
             let web_apps = std::path::Path::new(&base).join(&prof).join("Web Applications");
             if !web_apps.is_dir() { continue; }
+            // A shortened AUMID id: find the full id among the installed apps' folders.
+            let app_id = if app_id.len() == 26 {
+                let found = [web_apps.join("Manifest Resources"), web_apps.clone()].into_iter()
+                    .filter_map(|d| std::fs::read_dir(d).ok())
+                    .flat_map(|it| it.flatten().map(|e| e.file_name().to_string_lossy().trim_start_matches("_crx_").to_string()))
+                    .find(|n| web_app_id_matches_short(n, &app_id));
+                match found { Some(full) => full, None => continue }
+            } else {
+                app_id.clone()
+            };
 
             let candidates = [
                 web_apps.join("Manifest Resources").join(&app_id),
@@ -1597,6 +1617,24 @@ pub async fn get_app_icon(app: AppHandle, path: String, name: Option<String>, hw
             }).await.unwrap_or(None);
             if let Some(icon) = icon {
                 return Ok(Some(icon));
+            }
+        }
+    }
+
+    // A PWA window runs inside the browser exe: the installed-apps and pin lookups below match the
+    // browser itself by path, so look up the web app's own icon first.
+    if let Some(h) = hwnd {
+        if is_browser_host_process(&path) {
+            let path_owned = path.clone();
+            let icon = tauri::async_runtime::spawn_blocking(move || unsafe {
+                use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
+                let com = CoInitializeEx(None, COINIT_MULTITHREADED).is_ok();
+                let icon = pwa_icon_for_window(HWND(h as *mut _), &path_owned);
+                if com { CoUninitialize(); }
+                icon
+            }).await.unwrap_or(None);
+            if icon.is_some() {
+                return Ok(icon);
             }
         }
     }
@@ -4045,6 +4083,11 @@ mod pwa_icon_tests {
         assert!(is_browser_pwa_aumid("Brave._crx_edhbnieanoeijlkpgkminebadpibapgm"));
         assert!(is_browser_pwa_aumid("Brave._crx_agimnkijcamfeangaknmldooml"));
         assert!(is_browser_pwa_aumid("4DF9E0F8.Netflix_mcm4njqhnhss8!Netflix.App"));
+        assert_eq!(short_web_app_id_from_aumid("Chrome._crx_cinhimbnkkghhklpknlkffjgod").as_deref(), Some("cinhimbnkkghhklpknlkffjgod"));
+        assert_eq!(short_web_app_id_from_aumid("Chrome._crx_edhbnieanoeijlkpgkminebadpibapgm"), None);
+        assert!(web_app_id_matches_short("cinhimbnkkaeohfgghhklpknlkffjgod", "cinhimbnkkghhklpknlkffjgod"));
+        assert!(web_app_id_matches_short("agimnkijcaahngcdmfeangaknmldooml", "agimnkijcamfeangaknmldooml"));
+        assert!(!web_app_id_matches_short("agimnkijcaahngcdmfeangaknmldooml", "cinhimbnkkghhklpknlkffjgod"));
         assert!(!is_browser_pwa_aumid("MSEdge"));
         assert!(!is_browser_pwa_aumid("Chrome"));
         assert!(!is_browser_pwa_aumid("Brave"));
