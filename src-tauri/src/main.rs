@@ -114,6 +114,7 @@ fn main() {
             Some(vec![]),
         ))
         .invoke_handler(tauri::generate_handler![
+            hotkeys::chat_hotkey_ok,
             hide_native_osd,
             setup_shelf_drop,
             shelf_thumbnail,
